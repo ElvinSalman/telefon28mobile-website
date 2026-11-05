@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, type PointerEvent } from "react";
 import { motion } from "motion/react";
 import {
   ArrowRight,
@@ -23,6 +23,18 @@ const categories = [
   "other",
 ] as const;
 export function Home() {
+  function followPointer(event: PointerEvent<HTMLAnchorElement>) {
+    if (
+      event.pointerType !== "mouse" ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const target = event.currentTarget;
+    const bounds = target.getBoundingClientRect();
+    const x = (event.clientX - bounds.left - bounds.width / 2) * 0.065;
+    const y = (event.clientY - bounds.top - bounds.height / 2) * 0.12;
+    target.style.translate = x + "px " + y + "px";
+  }
   const { t, link } = useText();
   const [slide, setSlide] = useState(0);
   const hero = [
@@ -60,7 +72,14 @@ export function Home() {
                 : hero.name + " · " + (hero.storage || hero.color)}
             </p>
             <div className="heroButtons">
-              <Link className="button primary" href={link("catalog")}>
+              <Link
+                className="button primary"
+                href={link("catalog")}
+                onPointerMove={followPointer}
+                onPointerLeave={(e) => {
+                  e.currentTarget.style.translate = "";
+                }}
+              >
                 {t("explore")}
                 <ArrowRight size={17} />
               </Link>
