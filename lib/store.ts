@@ -16,7 +16,7 @@ export const useShop = create<Basket>()(
       change: (id, delta) =>
         set((s) => {
           const cart = { ...s.cart };
-          const n = Math.max(0, (cart[id] || 0) + delta);
+          const n = Math.min(99, Math.max(0, (cart[id] || 0) + delta));
           if (n) cart[id] = n;
           else delete cart[id];
           return { cart };

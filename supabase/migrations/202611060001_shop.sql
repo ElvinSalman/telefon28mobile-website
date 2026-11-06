@@ -1,0 +1,55 @@
+begin;
+create schema if not exists shop_private;
+revoke all on schema shop_private from public,anon,authenticated;
+create table public.admin_memberships(user_id uuid primary key references auth.users(id) on delete cascade, created_at timestamptz not null default now());
+create function public.shop_admin() returns boolean language sql stable security definer set search_path='' as $$select exists(select 1 from public.admin_memberships where user_id=(select auth.uid()))$$;
+revoke all on function public.shop_admin() from public;
+grant execute on function public.shop_admin() to authenticated;
+create table public.categories(slug text primary key check(slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),az text not null,ru text not null,en text not null,sort_order int not null default 0,active boolean not null default true);
+create table public.brands(slug text primary key,name text not null unique);
+create table public.products(id uuid primary key default gen_random_uuid(),slug text not null unique check(slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),name text not null check(length(name) between 1 and 160),brand_id text not null references public.brands,category_id text not null references public.categories,price numeric(12,2) not null check(price>=0),storage text not null default '',color text not null default '',description jsonb not null default '{}',specifications jsonb not null default '{}',condition text check(condition in ('new','used','refurbished')),status text not null default 'draft' check(status in ('published','draft','archived')),origin text not null default 'manual' check(origin in ('manual','owner_import')),created_at timestamptz not null default now(),updated_at timestamptz not null default now());
+create index products_catalog on public.products(status,category_id,brand_id,price);
+create function shop_private.touch_product() returns trigger language plpgsql set search_path='' as $$begin new.updated_at=now();return new;end$$;
+create trigger product_updated before update on public.products for each row execute function shop_private.touch_product();
+create table public.product_images(id uuid primary key default gen_random_uuid(),product_id uuid not null references public.products(id),path text not null unique,alt text not null,sort_order int not null check(sort_order between 0 and 7),unique(product_id,sort_order));
+create table public.store_locations(id uuid primary key default gen_random_uuid(),name text not null,address text not null,phone text,hours text,map_url text check(map_url is null or map_url ~ '^https://'),sort_order int not null,active boolean not null default true);
+create table public.site_settings(id int primary key check(id=1),whatsapp text not null check(whatsapp ~ '^[1-9][0-9]{7,14}$'));
+create table public.trade_in_requests(id uuid primary key default gen_random_uuid(),created_at timestamptz not null default now(),name text not null,phone text not null,model text not null,storage text not null,condition text not null,notes text not null default '',status text not null default 'new' check(status in ('new','contacted','closed')),consent_at timestamptz not null default now());
+create index trade_queue on public.trade_in_requests(status,created_at desc);
+create table public.daily_stats(day date not null,event text not null check(event in ('session','product_view','whatsapp_click','trade_in')),subject text not null default '',count bigint not null default 0 check(count>=0),primary key(day,event,subject));
+create table shop_private.throttles(bucket text primary key,expires timestamptz not null,hits int not null);
+create function public.shop_limit(key_hash text,maximum int,seconds int) returns boolean language plpgsql security definer set search_path='' as $$declare n int;begin
+delete from shop_private.throttles where expires<now();
+insert into shop_private.throttles values(key_hash,now()+make_interval(secs=>seconds),1) on conflict(bucket) do update set hits=shop_private.throttles.hits+1 returning hits into n;return n<=maximum;end$$;
+create function public.shop_count(kind text,item text default '') returns void language sql security definer set search_path='' as $$insert into public.daily_stats(day,event,subject,count) values((now() at time zone 'Asia/Baku')::date,kind,item,1) on conflict(day,event,subject) do update set count=public.daily_stats.count+1$$;
+create function public.shop_trade(payload jsonb) returns void language plpgsql security definer set search_path='' as $$begin
+insert into public.trade_in_requests(name,phone,model,storage,condition,notes) values(payload->>'name',payload->>'phone',payload->>'model',payload->>'storage',payload->>'condition',payload->>'notes');perform public.shop_count('trade_in','');end$$;
+revoke all on function public.shop_limit(text,int,int),public.shop_count(text,text),public.shop_trade(jsonb) from public,anon,authenticated;
+grant execute on function public.shop_limit(text,int,int),public.shop_count(text,text),public.shop_trade(jsonb) to service_role;
+do $$declare t text;begin foreach t in array array['admin_memberships','categories','brands','products','product_images','store_locations','site_settings','trade_in_requests','daily_stats'] loop
+execute format('alter table public.%I enable row level security',t);
+execute format('revoke all on public.%I from anon, authenticated, public',t);
+end loop;
+foreach t in array array['categories','brands','products','product_images','store_locations','site_settings'] loop
+execute format('grant select on public.%I to anon,authenticated',t);
+execute format('grant insert,update on public.%I to authenticated',t);
+execute format('create policy manager on public.%I for all to authenticated using ((select public.shop_admin())) with check ((select public.shop_admin()))',t);
+end loop;end$$;
+grant select on public.trade_in_requests,public.daily_stats to authenticated;
+grant update(status) on public.trade_in_requests to authenticated;
+create policy trade_admin on public.trade_in_requests for all to authenticated using ((select public.shop_admin())) with check ((select public.shop_admin()));
+create policy analytics_admin on public.daily_stats for select to authenticated using ((select public.shop_admin()));
+create policy categories_visible on public.categories for select using(active);
+create policy published on public.products for select using(status='published' and exists(select 1 from public.categories c where c.slug=category_id and c.active));
+create policy brands_visible on public.brands for select using(exists(select 1 from public.products p where p.brand_id=brands.slug));
+create policy image_visible on public.product_images for select using(exists(select 1 from public.products p where p.id=product_id));
+create policy stores_visible on public.store_locations for select using(active);
+create policy settings_visible on public.site_settings for select using(true);
+insert into public.categories values ('phone','Smartfonlar','Смартфоны','Smartphones',1,true),('tablet','Planşetlər','Планшеты','Tablets',2,true),('laptop','Noutbuklar','Ноутбуки','Laptops',3,true),('watch','Saatlar','Часы','Watches',4,true),('audio','Qulaqlıqlar','Наушники','Headphones',5,true),('accessories','Aksesuarlar','Аксессуары','Accessories',6,true),('gaming','Konsollar','Консоли','Consoles',7,true),('home-appliances','Məişət texnikası','Бытовая техника','Home appliances',8,true),('other','Digər','Другое','Other',9,true);
+insert into public.store_locations(name,address,sort_order) values ('39D','Azadlıq prospekti, 39D, Bakı',1),('21','Dilarə Əliyeva küçəsi, 21, Bakı',2),('39E','Azadlıq prospekti, 39E, Bakı',3);
+insert into public.site_settings values(1,'994556002001');
+insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types) values('product-images','product-images',true,4194304,array['image/jpeg','image/webp','image/png']);
+create policy product_upload on storage.objects for insert to authenticated with check(bucket_id='product-images' and (select public.shop_admin()));
+create policy product_manage_files on storage.objects for select to authenticated using(bucket_id='product-images' and (select public.shop_admin()));
+create policy product_remove_orphan on storage.objects for delete to authenticated using(bucket_id='product-images' and (select public.shop_admin()));
+commit;

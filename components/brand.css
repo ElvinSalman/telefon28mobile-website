@@ -1,0 +1,17 @@
+.store-logo {
+  display: block;
+  width: 61px;
+  aspect-ratio: 543 / 546;
+  background: currentColor;
+  mask: url("/brand/telefon-28-mobile.svg") center / contain no-repeat;
+}
+
+footer .store-logo {
+  width: 100px;
+}
+
+@media (max-width: 700px) {
+  header .store-logo {
+    width: 49px;
+  }
+}

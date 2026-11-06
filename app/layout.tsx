@@ -1,3 +1,4 @@
+import "./shop.css";
 import { cookies } from "next/headers";
 import "./globals.css";
 export default async function Root({

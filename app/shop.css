@@ -1,0 +1,115 @@
+.adminArea {
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  padding-top: 24px;
+}
+.adminLogin,
+.ownerForm {
+  width: min(100%, 580px);
+  margin: auto;
+}
+.adminLogin h1,
+.adminArea h1 {
+  font-size: clamp(30px, 4vw, 58px);
+}
+.adminHeader {
+  position: static;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px;
+}
+.adminTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 18px 0 24px;
+}
+.adminTabs a {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.adminTabs a[aria-current="true"] {
+  background: var(--button);
+  color: white;
+}
+.adminGrid,
+.branchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+  gap: 14px;
+}
+.mapCard {
+  margin-top: 20px;
+  background:
+    radial-gradient(ellipse at top right, #44588940, transparent), var(--panel);
+}
+.ownerForm textarea,
+.adminArea textarea {
+  background: var(--panel);
+  color: var(--ink);
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+.consent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.consent input,
+.adminArea input[type="checkbox"] {
+  width: auto;
+}
+.adminArea form {
+  margin-bottom: 14px;
+}
+.adminArea article {
+  margin: 10px 0;
+}
+.adminArea .tableRow {
+  flex-wrap: wrap;
+}
+.adminNotice {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  padding: 8px;
+  z-index: 2;
+}
+.adminArea button {
+  padding: 7px 10px;
+}
+.adminArea label {
+  min-width: 0;
+}
+.adminArea pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.adminArea select {
+  max-width: 100%;
+}
+.adminArea details > summary {
+  margin-bottom: 8px;
+}
+.adminArea .thumb {
+  width: 52px;
+  height: 46px;
+  object-fit: contain;
+}
+.adminArea .box {
+  margin-bottom: 14px;
+}
+
+.adminArea meter {
+  display: block;
+  width: 100%;
+  height: 12px;
+  accent-color: var(--accent);
+}

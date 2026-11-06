@@ -5,7 +5,9 @@ import { Home } from "@/components/home";
 import { Catalog } from "@/components/catalog";
 import { Detail } from "@/components/products";
 import { Shopping, Info } from "@/components/pages";
-import { products } from "@/data/products";
+import { loadShop } from "@/lib/catalog-data";
+import { Stores, Trade } from "@/components/owner-public";
+import { redirect } from "next/navigation";
 import { translate, locales, type Locale, type Key } from "@/lib/i18n";
 import { origin } from "@/lib/config";
 type Params = Promise<{ locale: Locale; route?: string[] }>;
@@ -16,6 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale, route = [] } = await params;
   if (!locales.includes(locale)) return {};
+  const { products } = await loadShop();
   const p =
     route[0] === "products" ? products.find((x) => x.slug === route[1]) : null;
   const title =
@@ -49,7 +52,44 @@ export async function generateMetadata({
 export default async function Page({ params }: { params: Params }) {
   const { route = [], locale } = await params;
   const [page, slug] = route;
-  if (!page) return <Home />;
+  const { products, locations, whatsapp } = await loadShop();
+  if (
+    route.length === 1 &&
+    ["account", "login", "register", "reset", "profile", "addresses"].includes(
+      page,
+    )
+  )
+    redirect("/" + locale + "/catalog");
+  if (!page)
+    return (
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Telefon28Mobile",
+              telephone: "+" + whatsapp,
+              location: locations.map((x) => ({
+                "@type": "Store",
+                name: "Telefon28Mobile · " + x.name,
+                address: {
+                  "@type": "PostalAddress",
+                  streetAddress: x.address,
+                  addressCountry: "AZ",
+                },
+              })),
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
+        <Home />
+      </>
+    );
+  if (route.length === 1 && page === "admin") redirect("/admin");
+  if (route.length === 1 && ["stores", "contact"].includes(page))
+    return <Stores />;
+  if (route.length === 1 && page === "trade-in") return <Trade />;
   if (page === "products" && route.length === 2) {
     const p = products.find((x) => x.slug === slug);
     if (!p) notFound();
@@ -66,9 +106,13 @@ export default async function Page({ params }: { params: Params }) {
               color: p.color || undefined,
               sku: p.slug,
               url: origin + "/" + locale + "/products/" + p.slug,
-              sameAs: p.source,
+              offers: {
+                "@type": "Offer",
+                price: p.price,
+                priceCurrency: "AZN",
+              },
               description: translate(locale, "priceNote"),
-            }),
+            }).replace(/</g, "\\u003c"),
           }}
         />
         <Detail p={p} />
@@ -78,7 +122,7 @@ export default async function Page({ params }: { params: Params }) {
   if (route.length !== 1) notFound();
   if (page === "catalog")
     return (
-      <Suspense fallback={<div aria-busy className="wrap inner skeleton"/>}>
+      <Suspense fallback={<div aria-busy className="wrap inner skeleton" />}>
         <Catalog />
       </Suspense>
     );

@@ -1,4 +1,5 @@
 "use client";
+import { useInventory } from "./inventory";
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -11,24 +12,35 @@ import {
   Share2,
   ZoomIn,
   ChevronRight,
-  MessageCircle,
 } from "lucide-react";
-import { products, contact, type Product } from "@/data/products";
+import { type Product } from "@/data/products";
 import { artFor } from "@/lib/art";
 import { useText, money } from "./hooks";
 import { useNotice } from "./shell";
 import { useShop } from "@/lib/store";
+import { OrderButton } from "./order-button";
 import { Modal } from "./modal";
 import { buttonVariants } from "./ui/button";
-export function Art({ p, large = false }: { p: Product; large?: boolean }) {
+export function Art({
+  p,
+  large = false,
+  index = 0,
+}: {
+  p: Product;
+  large?: boolean;
+  index?: number;
+}) {
   return (
     <Image
-      src={artFor(p)}
+      src={p.images?.[index]?.url || artFor(p)}
       width={420}
       height={300}
       unoptimized
       className={large ? "art big" : "art"}
-      alt={p.name + " · " + [p.storage, p.color].filter(Boolean).join(" ")}
+      alt={
+        p.images?.[index]?.alt ||
+        p.name + " · " + [p.storage, p.color].filter(Boolean).join(" ")
+      }
     />
   );
 }
@@ -98,9 +110,7 @@ export function Card({ p, i = 0 }: { p: Product; i?: number }) {
         <Link href={link("products/" + p.slug)}>
           <h3>{p.name}</h3>
         </Link>
-        <p>
-          {[p.storage, p.color].filter(Boolean).join(" · ") || t(p.category)}
-        </p>
+        <p>{[p.storage, p.color].filter(Boolean).join(" · ") || p.brand}</p>
         <div className="row">
           <strong>{money(p.price)}</strong>
           <Actions p={p} compact />
@@ -130,6 +140,8 @@ export function Detail({ p }: { p: Product }) {
   const notice = useNotice();
   const [zoom, setZoom] = useState(false);
   const [angle, setAngle] = useState(false);
+  const { products, categories } = useInventory();
+  const [index, setIndex] = useState(0);
   const related = products
     .filter((x) => x.slug !== p.slug && x.category === p.category)
     .slice(0, 4);
@@ -147,13 +159,22 @@ export function Detail({ p }: { p: Product }) {
             onClick={() => setZoom(true)}
             aria-label={t("zoom")}
           >
-            <Art p={p} large />
+            <Art p={p} large index={index} />
             <span>
               <ZoomIn size={17} />
-              {t("art")}
+              {t(p.images?.length ? "gallery" : "art")}
             </span>
           </button>
           <div className="chips">
+            {p.images?.map((im, i) => (
+              <button
+                key={im.url}
+                aria-pressed={index === i}
+                onClick={() => setIndex(i)}
+              >
+                {t("gallery")} {i + 1}
+              </button>
+            ))}
             {[false, true].map((a, i) => (
               <button
                 key={i}
@@ -167,27 +188,17 @@ export function Detail({ p }: { p: Product }) {
         </div>
         <div>
           <div className="kicker">
-            {p.brand} / {t(p.category)}
+            {p.brand} /{" "}
+            {categories.find((c) => c.slug === p.category)?.[locale] ||
+              p.category}
           </div>
           <h1>{p.name}</h1>
+          <p>{p.description?.[locale]}</p>
           <p>{[p.storage, p.color].filter(Boolean).join(" · ")}</p>
           <h2>{money(p.price)}</h2>
           <small>{t("priceNote")}</small>
           <Actions p={p} />
-          <a
-            className="textlink"
-            href={
-              "https://wa.me/" +
-              contact.whatsapp +
-              "?text=" +
-              encodeURIComponent(
-                t("view") + " — " + p.name + " " + p.storage + " " + p.color,
-              )
-            }
-          >
-            <MessageCircle size={16} />
-            {t("inquire")}
-          </a>
+          <OrderButton lines={[{ slug: p.slug, qty: 1, price: p.price }]} />
           <button
             className="textlink"
             onClick={async () => {
@@ -208,24 +219,8 @@ export function Detail({ p }: { p: Product }) {
               [t("brand"), p.brand],
               [t("storage"), p.storage],
               [t("color"), p.color],
-              ...[
-                ...(p.condition === "new"
-                  ? [
-                      [
-                        locale === "az"
-                          ? "Vəziyyət"
-                          : locale === "ru"
-                            ? "Состояние"
-                            : "Condition",
-                        locale === "az"
-                          ? "Yeni"
-                          : locale === "ru"
-                            ? "Новый"
-                            : "New",
-                      ],
-                    ]
-                  : []),
-              ],
+              ...Object.entries(p.specifications || {}),
+              ...(p.condition ? [[t("deviceCondition"), t(p.condition)]] : []),
             ]
               .filter((x) => x[1])
               .map(([k, v]) => (
@@ -235,15 +230,7 @@ export function Detail({ p }: { p: Product }) {
                 </div>
               ))}
           </dl>
-          <a
-            className="textlink"
-            href={p.source}
-            target="_blank"
-            rel="noreferrer"
-          >
-            {t("source")} · {p.verifiedAt.slice(0, 10)}{" "}
-            <ArrowUpRight size={15} />
-          </a>
+
           <div className="chips">
             {products
               .filter((x) => x.name === p.name && x.slug !== p.slug)
@@ -263,7 +250,7 @@ export function Detail({ p }: { p: Product }) {
       </div>
       <Modal open={zoom} close={() => setZoom(false)} title={p.name}>
         <div className={angle ? "cropped" : ""}>
-          <Art p={p} large />
+          <Art p={p} large index={index} />
         </div>
         <small>{t("art")}</small>
       </Modal>

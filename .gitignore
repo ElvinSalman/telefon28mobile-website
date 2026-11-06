@@ -9,3 +9,6 @@ playwright-report/
 next-env.d.ts
 
 
+
+supabase/.temp/
+supabase/.branches/

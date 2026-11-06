@@ -1,6 +1,78 @@
 export const locales = ["az", "ru", "en"] as const;
 export type Locale = (typeof locales)[number];
 export const copy = {
+  new: ["Yeni", "Новый", "New"],
+  used: ["İşlənmiş", "Подержанный", "Used"],
+  refurbished: ["Bərpa edilmiş", "Восстановленный", "Refurbished"],
+  tradePrivacy: [
+    "Trade-in məlumatlarınız yalnız müraciətə baxan mağaza idarəçilərinə görünür. Silinmə üçün mağaza ilə əlaqə saxlayın.",
+    "Данные заявки доступны администраторам магазина для её обработки. Для удаления обратитесь в магазин.",
+    "Store administrators can access your trade-in details to handle your request. Contact the store to request deletion.",
+  ],
+  stores: ["Mağazalarımız", "Наши магазины", "Our stores"],
+  map: ["Xəritədə bax", "Показать на карте", "View on map"],
+  "trade-in": ["Trade-in müraciəti", "Заявка на обмен", "Trade-in request"],
+  tradeIntro: [
+    "Cihazınız haqqında məlumat göndərin. Mağaza sizinlə əlaqə saxlayacaq.",
+    "Расскажите об устройстве. Магазин свяжется с вами.",
+    "Tell us about your device. The shop will contact you.",
+  ],
+  model: ["Marka və model", "Бренд и модель", "Brand and model"],
+  deviceCondition: [
+    "Cihazın vəziyyəti",
+    "Состояние устройства",
+    "Device condition",
+  ],
+  good: ["Yaxşı", "Хорошее", "Good"],
+  fair: ["İstifadə izləri", "Следы использования", "Signs of use"],
+  damaged: ["Zədəli", "Повреждено", "Damaged"],
+  issues: [
+    "Qüsurlar və qeydlər",
+    "Дефекты и комментарии",
+    "Defects and comments",
+  ],
+  consent: [
+    "Müraciətimlə bağlı əlaqə üçün məlumatlarımın mağazaya ötürülməsinə razıyam.",
+    "Согласен на передачу данных магазину для связи по заявке.",
+    "I agree to share these details with the store so it can contact me about this request.",
+  ],
+  sendRequest: ["Müraciəti göndər", "Отправить заявку", "Submit request"],
+  submitted: [
+    "Müraciət qəbul edildi.",
+    "Заявка получена.",
+    "Request received.",
+  ],
+  failed: [
+    "Xidmət müvəqqəti əlçatan deyil. Yenidən cəhd edin.",
+    "Сервис временно недоступен. Попробуйте ещё раз.",
+    "Service is temporarily unavailable. Please try again.",
+  ],
+  busy: ["Gözləyin…", "Подождите…", "Please wait…"],
+  rate: [
+    "Daha sonra yenidən cəhd edin.",
+    "Попробуйте позже.",
+    "Please try again later.",
+  ],
+  invalid: [
+    "Daxil etdiyiniz məlumatları yoxlayın.",
+    "Проверьте введённые данные.",
+    "Check your entries.",
+  ],
+  changed: [
+    "Qiymət və ya mövcudluq dəyişib. Səbəti yenidən yoxlayın.",
+    "Цена или наличие изменились. Проверьте корзину.",
+    "Price or availability changed. Please review your cart.",
+  ],
+  catalogEmpty: [
+    "Hələ məhsul dərc edilməyib.",
+    "Товары пока не опубликованы.",
+    "The store has yet to publish products.",
+  ],
+  catalogOffline: [
+    "Kataloq müvəqqəti əlçatan deyil.",
+    "Каталог временно недоступен.",
+    "Catalog temporarily unavailable.",
+  ],
   home: ["Ana səhifə", "Главная", "Home"],
   catalog: ["Kataloq", "Каталог", "Catalog"],
   services: ["Xidmətlər", "Услуги", "Services"],
@@ -86,9 +158,9 @@ export const copy = {
   quick: ["Sürətli baxış", "Быстрый просмотр", "Quick view"],
   source: ["Satıcının elanı", "Объявление продавца", "Seller listing"],
   priceNote: [
-    "Elan qiyməti. Cari qiyməti və mövcudluğu mağazadan dəqiqləşdirin.",
-    "Цена из объявления. Уточните актуальную цену и наличие в магазине.",
-    "Advertised price. Confirm the current price and availability with the shop.",
+    "Cari qiyməti və mövcudluğu mağazadan dəqiqləşdirin.",
+    "Уточните актуальную цену и наличие в магазине.",
+    "Confirm the current price and availability with the shop.",
   ],
   related: ["Oxşar məhsullar", "Похожие товары", "Related products"],
   share: ["Paylaş", "Поделиться", "Share"],

@@ -54,7 +54,12 @@ const illustrations: Record<string, string> = {
 };
 
 export function artFor(product: Product): string {
+  if (product.images?.[0]) return product.images[0].url;
   const key = [product.name, product.color].join("|");
-  const illustration = illustrations[key] ?? product.category;
+  const illustration =
+    illustrations[key] ??
+    (["phone", "tablet", "watch", "audio", "gaming"].includes(product.category)
+      ? product.category
+      : "other");
   return `/art/${illustration}.svg`;
 }

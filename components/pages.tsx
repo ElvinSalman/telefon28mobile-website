@@ -1,8 +1,7 @@
 "use client";
-import { Badge } from "./ui/badge";
+
 import Link from "next/link";
-import { useState } from "react";
-import { z } from "zod";
+
 import {
   ArrowUpRight,
   Minus,
@@ -15,9 +14,9 @@ import {
   Repeat,
   ShoppingBag,
   Heart,
-  LockKeyhole,
 } from "lucide-react";
-import { contact, products } from "@/data/products";
+import { useInventory } from "./inventory";
+import { OrderButton } from "./order-button";
 import { useShop } from "@/lib/store";
 import { useText, money } from "./hooks";
 import { Art, Card } from "./products";
@@ -25,15 +24,27 @@ import type { Key } from "@/lib/i18n";
 export function Shopping({ page }: { page: "wishlist" | "cart" | "checkout" }) {
   const { t, link } = useText();
   const { cart, favorites, change, remove } = useShop();
+  const { products, offline } = useInventory();
+  const missing = offline
+    ? []
+    : Object.keys(cart).filter((id) => !products.some((p) => p.slug === id));
   const items = products.filter((p) =>
     page === "wishlist" ? favorites.includes(p.slug) : cart[p.slug] > 0,
   );
   const total = items.reduce((s, p) => s + p.price * (cart[p.slug] || 0), 0);
-  const [delivery, setDelivery] = useState(false);
-  const [error, setError] = useState(false);
+
   return (
     <div className="wrap inner">
       <h1>{t(page)}</h1>
+      {page !== "wishlist" &&
+        missing.map((id) => (
+          <div key={id} className="tableRow">
+            <span>
+              {t("changed")} · {id}
+            </span>
+            <button onClick={() => remove(id)}>{t("remove")}</button>
+          </div>
+        ))}
       {!items.length ? (
         <div className="empty">
           {page === "wishlist" ? <Heart /> : <ShoppingBag />}
@@ -101,83 +112,13 @@ export function Shopping({ page }: { page: "wishlist" | "cart" | "checkout" }) {
                 <ArrowUpRight size={17} />
               </Link>
             ) : (
-              <form
-                noValidate
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const data = new FormData(e.currentTarget);
-                  const schema = z.object({
-                    name: z.string().trim().min(2),
-                    phone: z.string().regex(/^\+?[\d ()-]{7,22}$/),
-                    address: delivery ? z.string().trim().min(4) : z.string(),
-                  });
-                  const r = schema.safeParse({
-                    name: data.get("name"),
-                    phone: data.get("phone"),
-                    address: data.get("address") || "",
-                  });
-                  setError(!r.success);
-                  if (r.success) {
-                    const lines = [
-                      t("checkout"),
-                      r.data.name,
-                      r.data.phone,
-                      t(delivery ? "delivery" : "pickup"),
-                      r.data.address,
-                      ...items.map(
-                        (p) =>
-                          p.name +
-                          " " +
-                          p.storage +
-                          " " +
-                          p.color +
-                          " × " +
-                          cart[p.slug] +
-                          " — " +
-                          money(p.price * cart[p.slug]),
-                      ),
-                      t("total") + " " + money(total),
-                    ];
-                    window.open(
-                      "https://wa.me/" +
-                        contact.whatsapp +
-                        "?text=" +
-                        encodeURIComponent(lines.filter(Boolean).join("\n")),
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                  }
-                }}
-              >
-                <label>
-                  {t("name")}
-                  <input name="name" autoComplete="name" />
-                </label>
-                <label>
-                  {t("tel")}
-                  <input type="tel" name="phone" autoComplete="tel" />
-                </label>
-                <select
-                  aria-label={t("checkout")}
-                  value={delivery ? "delivery" : "pickup"}
-                  onChange={(e) => setDelivery(e.target.value === "delivery")}
-                >
-                  <option value="pickup">{t("pickup")}</option>
-                  <option value="delivery">{t("delivery")}</option>
-                </select>
-                {delivery && (
-                  <label>
-                    {t("address")}
-                    <input name="address" autoComplete="street-address" />
-                  </label>
-                )}
-                <small>{t("checkoutNote")}</small>
-                {error && <p role="alert">{t("validation")}</p>}
-                <button className="button primary">
-                  {t("inquire")}
-                  <ArrowUpRight size={16} />
-                </button>
-              </form>
+              <OrderButton
+                lines={Object.entries(cart).map(([slug, qty]) => ({
+                  slug,
+                  qty,
+                  price: products.find((p) => p.slug === slug)?.price ?? 0,
+                }))}
+              />
             )}
           </div>
         </div>
@@ -187,16 +128,9 @@ export function Shopping({ page }: { page: "wishlist" | "cart" | "checkout" }) {
 }
 export function Info({ page }: { page: string }) {
   const { t, link } = useText();
+  const { whatsapp } = useInventory();
+  const contact = { whatsapp, phone: "+" + whatsapp };
   const wa = "https://wa.me/" + contact.whatsapp;
-  const account = [
-    "account",
-    "login",
-    "register",
-    "reset",
-    "profile",
-    "addresses",
-  ].includes(page);
-  const [tab, setTab] = useState<Key>("catalog");
   const contactBox = (
     <div className="box">
       <MapPin />
@@ -214,105 +148,7 @@ export function Info({ page }: { page: string }) {
   return (
     <div className="wrap inner">
       <h1>{t(page as Key)}</h1>
-      {account ? (
-        <div className="checkoutLayout">
-          <div className="box">
-            <LockKeyhole />
-            <h3>{t("demo")}</h3>
-            <p>{t("accountNote")}</p>
-            <div className="chips">
-              {(
-                ["login", "register", "reset", "profile", "addresses"] as const
-              ).map((k) => (
-                <Link key={k} href={link(k)}>
-                  {t(k)}
-                </Link>
-              ))}
-            </div>
-          </div>
-          <div className="box">
-            <h2>{t(page === "account" ? "login" : (page as Key))}</h2>
-            {["account", "login", "register", "reset"].includes(page) ? (
-              <fieldset disabled>
-                <label>
-                  {t("email")}
-                  <input type="email" />
-                </label>
-                {page !== "reset" && (
-                  <label>
-                    {t("password")}
-                    <input type="password" />
-                  </label>
-                )}
-                <button className="button outline" disabled>
-                  {t("demo")}
-                </button>
-              </fieldset>
-            ) : (
-              <p>{t("accountNote")}</p>
-            )}
-          </div>
-        </div>
-      ) : page === "admin" ? (
-        <>
-          <Badge>{t("prototype")}</Badge>
-          <div className="metrics">
-            {[
-              [t("catalog"), products.length],
-              [t("brands"), new Set(products.map((p) => p.brand)).size],
-              [t("categories"), new Set(products.map((p) => p.category)).size],
-            ].map(([k, v]) => (
-              <div className="box" key={k}>
-                <small>{k}</small>
-                <h2>{v}</h2>
-              </div>
-            ))}
-          </div>
-          <div className="chips">
-            {(
-              [
-                "catalog",
-                "categories",
-                "prices",
-                "variants",
-                "inventory",
-                "orders",
-                "customers",
-                "promo",
-              ] as const
-            ).map((k) => (
-              <button
-                aria-pressed={tab === k}
-                onClick={() => setTab(k)}
-                key={k}
-              >
-                {t(k)}
-              </button>
-            ))}
-          </div>
-          <div className="box">
-            <h2>{t(tab)}</h2>
-            {["orders", "customers", "promo"].includes(tab) ? (
-              <p>{t("prototype")} · 0</p>
-            ) : tab === "categories" ? (
-              Array.from(new Set(products.map((p) => p.category))).map((c) => (
-                <p key={c}>
-                  {t(c)} · {products.filter((p) => p.category === c).length}
-                </p>
-              ))
-            ) : (
-              products.map((p) => (
-                <div className="tableRow" key={p.slug}>
-                  <span>
-                    {p.name} {p.storage} {p.color}
-                  </span>
-                  <b>{tab === "inventory" ? t("unknown") : money(p.price)}</b>
-                </div>
-              ))
-            )}
-          </div>
-        </>
-      ) : ["services", "contact", "about"].includes(page) ? (
+      {["services", "contact", "about"].includes(page) ? (
         <>
           <div className="checkoutLayout">
             <div className="box">
@@ -342,7 +178,11 @@ export function Info({ page }: { page: string }) {
                   <a
                     className="box"
                     key={k}
-                    href={wa + "?text=" + encodeURIComponent(t(k))}
+                    href={
+                      k === "trade"
+                        ? link("trade-in")
+                        : wa + "?text=" + encodeURIComponent(t(k))
+                    }
                   >
                     <Icon />
                     <h3>{t(k)}</h3>
@@ -371,6 +211,7 @@ export function Info({ page }: { page: string }) {
         </div>
       ) : (
         <div className="box">
+          {page === "privacy" && <p>{t("tradePrivacy")}</p>}
           <p>{t(page === "promo" ? "noPromo" : "pending")}</p>
           <Link className="textlink" href={link("contact")}>
             {t("contact")} ↗

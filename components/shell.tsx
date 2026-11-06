@@ -16,23 +16,18 @@ import {
   ArrowUpRight,
   Globe,
   Check,
-  UserRound,
 } from "lucide-react";
 import { locales, type Locale } from "@/lib/i18n";
-import { products } from "@/data/products";
+import { useInventory } from "./inventory";
 import { useShop } from "@/lib/store";
 import { Modal } from "./modal";
 import { useText, money } from "./hooks";
+import "./brand.css";
 const Notice = createContext<(s: string) => void>(() => {});
 export const useNotice = () => useContext(Notice);
 export function Logo() {
   return (
-    <span className="logo">
-      <b>28</b>
-      <span>
-        Telefon 28<small>MOBILE</small>
-      </span>
-    </span>
+    <span className="store-logo" role="img" aria-label="Telefon 28 Mobile" />
   );
 }
 export function Shell({
@@ -52,6 +47,7 @@ export function Shell({
 }
 function Frame({ children }: { children: React.ReactNode }) {
   const { t, link, locale } = useText();
+  const { products, categories } = useInventory();
   const path = usePathname();
   const router = useRouter();
   const { theme, setTheme } = useTheme();
@@ -70,15 +66,8 @@ function Frame({ children }: { children: React.ReactNode }) {
       return () => clearTimeout(timer);
     }
   }, [notice]);
-  const nav = ["catalog", "services", "about", "contact"] as const;
-  const cats = [
-    "phone",
-    "tablet",
-    "audio",
-    "watch",
-    "gaming",
-    "other",
-  ] as const;
+  const nav = ["catalog", "trade-in", "services", "stores"] as const;
+  const cats = categories;
   return (
     <Notice.Provider value={(s) => setNotice(s)}>
       <motion.div className="progress" style={{ scaleX: scrollYProgress }} />
@@ -96,8 +85,11 @@ function Frame({ children }: { children: React.ReactNode }) {
                   </Link>
                   <div className="mega">
                     {cats.map((c) => (
-                      <Link key={c} href={link("catalog?category=" + c)}>
-                        {t(c)}
+                      <Link
+                        key={c.slug}
+                        href={link("catalog?category=" + c.slug)}
+                      >
+                        {c[locale]}
                         <ArrowUpRight size={14} />
                       </Link>
                     ))}
@@ -172,11 +164,10 @@ function Frame({ children }: { children: React.ReactNode }) {
           <div>
             <Logo />
             <p>{t("addressLine")}</p>
-            <small>{t("demo")}</small>
           </div>
           {[
             ["catalog", "services", "contact", "about"] as const,
-            ["cart", "wishlist", "account", "admin"] as const,
+            ["cart", "wishlist", "trade-in", "admin"] as const,
             ["faq", "promo", "privacy", "terms"] as const,
           ].map((list, i) => (
             <div key={i}>
@@ -263,9 +254,8 @@ function Frame({ children }: { children: React.ReactNode }) {
           </div>
         ) : (
           <div className="menuList">
-            {[...nav, "wishlist", "account"].map((k) => (
+            {[...nav, "wishlist"].map((k) => (
               <Link key={k} href={link(k)} onClick={() => setPanel("")}>
-                {k === "account" && <UserRound size={16} />}{" "}
                 {t(k as (typeof nav)[number])}
                 <ArrowUpRight size={16} />
               </Link>

@@ -10,18 +10,11 @@ import {
   ChevronRight,
   MapPin,
 } from "lucide-react";
-import { products } from "@/data/products";
+import { useInventory } from "./inventory";
 import { artFor } from "@/lib/art";
 import { useText } from "./hooks";
 import { Card } from "./products";
-const categories = [
-  "phone",
-  "tablet",
-  "watch",
-  "audio",
-  "gaming",
-  "other",
-] as const;
+
 export function Home() {
   function followPointer(event: PointerEvent<HTMLAnchorElement>) {
     if (
@@ -35,15 +28,11 @@ export function Home() {
     const y = (event.clientY - bounds.top - bounds.height / 2) * 0.12;
     target.style.translate = x + "px " + y + "px";
   }
-  const { t, link } = useText();
+  const { t, link, locale } = useText();
+  const { products, categories, offline } = useInventory();
   const [slide, setSlide] = useState(0);
-  const hero = [
-    products.find(
-      (p) => p.name.includes("17 Pro") && p.color === "Cosmic Orange",
-    ) || products[0],
-    products.find((p) => p.category === "watch")!,
-    products.find((p) => p.category === "gaming")!,
-  ][slide];
+  const slides = products.slice(0, 3);
+  const hero = slides[slide];
   return (
     <>
       <section className="hero">
@@ -67,9 +56,11 @@ export function Home() {
               ))}
             </h1>
             <p>
-              {slide === 0
-                ? t("heroText")
-                : hero.name + " · " + (hero.storage || hero.color)}
+              {hero
+                ? [hero.name, hero.storage, hero.color]
+                    .filter(Boolean)
+                    .join(" · ")
+                : t("serviceText")}
             </p>
             <div className="heroButtons">
               <Link
@@ -85,9 +76,9 @@ export function Home() {
               </Link>
               <Link
                 className="button subtle"
-                href={link("products/" + hero.slug)}
+                href={hero ? link("products/" + hero.slug) : link("trade-in")}
               >
-                {t("view")}
+                {t(hero ? "view" : "trade-in")}
                 <ArrowUpRight size={15} />
               </Link>
             </div>
@@ -101,51 +92,58 @@ export function Home() {
               animate={{ opacity: 1, x: 0 }}
             >
               <Image
-                src={slide === 0 ? "/art/hero.svg" : artFor(hero)}
+                unoptimized
+                src={hero ? artFor(hero) : "/art/hero.svg"}
                 width={760}
                 height={620}
                 priority
-                alt={hero.name}
+                alt={hero?.name || t("art")}
               />
             </motion.div>
             <div className="spec">
               <i />
               <div>
-                <b>{hero.name.replace("Apple ", "")}</b>
+                <b>{hero?.name || t("art")}</b>
                 <small>
-                  {[hero.color, hero.storage].filter(Boolean).join(" / ")}
+                  {hero
+                    ? [hero.color, hero.storage].filter(Boolean).join(" / ")
+                    : "Telefon28Mobile"}
                 </small>
               </div>
             </div>
           </div>
-          <div className="heroFoot">
-            <div className="sequence">
-              <b>0{slide + 1}</b>
-              <div>
-                {[0, 1, 2].map((i) => (
+          {slides.length > 1 && (
+            <div className="heroFoot">
+              <div className="sequence">
+                <b>0{slide + 1}</b>
+                <div>
+                  {slides.map((_, i) => (
+                    <button
+                      key={i}
+                      aria-label={t("collection") + " " + (i + 1)}
+                      aria-current={slide === i}
+                      onClick={() => setSlide(i)}
+                    />
+                  ))}
+                </div>
+                0{slides.length}
+              </div>
+              <div className="heroArrows">
+                {[-1, 1].map((d) => (
                   <button
-                    key={i}
-                    aria-label={t("collection") + " " + (i + 1)}
-                    aria-current={slide === i}
-                    onClick={() => setSlide(i)}
-                  />
+                    className="icon"
+                    key={d}
+                    aria-label={t(d < 0 ? "previous" : "next")}
+                    onClick={() =>
+                      setSlide((slide + d + slides.length) % slides.length)
+                    }
+                  >
+                    {d < 0 ? <ChevronLeft /> : <ChevronRight />}
+                  </button>
                 ))}
               </div>
-              03
             </div>
-            <div className="heroArrows">
-              {[-1, 1].map((d) => (
-                <button
-                  className="icon"
-                  key={d}
-                  aria-label={t(d < 0 ? "previous" : "next")}
-                  onClick={() => setSlide((slide + d + 3) % 3)}
-                >
-                  {d < 0 ? <ChevronLeft /> : <ChevronRight />}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
         </div>
       </section>
       <div className="wrap">
@@ -160,18 +158,26 @@ export function Home() {
           <div className="catGrid">
             {categories.map((c, i) => (
               <Link
-                key={c}
+                key={c.slug}
                 className={"cat cat" + i}
-                href={link("catalog?category=" + c)}
+                href={link("catalog?category=" + c.slug)}
               >
                 <Image
-                  src={"/art/" + c + ".svg"}
+                  src={
+                    "/art/" +
+                    (["phone", "watch", "audio", "gaming", "tablet"].includes(
+                      c.slug,
+                    )
+                      ? c.slug
+                      : "other") +
+                    ".svg"
+                  }
                   alt=""
                   width={210}
                   height={150}
                 />
                 <div>
-                  {t(c)}
+                  {c[locale]}
                   <ArrowUpRight size={15} />
                 </div>
               </Link>
@@ -186,24 +192,29 @@ export function Home() {
             </Link>
           </div>
           <div className="grid">
+            {!products.length && (
+              <p>{t(offline ? "catalogOffline" : "catalogEmpty")}</p>
+            )}
             {products.slice(0, 8).map((p, i) => (
               <Card key={p.slug} p={p} i={i} />
             ))}
           </div>
         </section>
-        <section className="section">
-          <h2>{t("brands")}</h2>
-          <div className="brands">
-            {Array.from(new Set(products.map((p) => p.brand))).map((b) => (
-              <Link
-                key={b}
-                href={link("catalog?brand=" + encodeURIComponent(b))}
-              >
-                {b}
-              </Link>
-            ))}
-          </div>
-        </section>
+        {!!products.length && (
+          <section className="section">
+            <h2>{t("brands")}</h2>
+            <div className="brands">
+              {Array.from(new Set(products.map((p) => p.brand))).map((b) => (
+                <Link
+                  key={b}
+                  href={link("catalog?brand=" + encodeURIComponent(b))}
+                >
+                  {b}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
         <section className="bento section">
           <div>
             <div className="kicker">Telefon 28 Mobile</div>

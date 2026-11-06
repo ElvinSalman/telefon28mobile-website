@@ -1,62 +1,39 @@
-# Telefon 28 Mobile
+# Telefon28Mobile
 
-A trilingual electronics shopping demo for a retailer on Azadlıq Avenue in Baku. The default storefront opens in Azerbaijani and dark mode.
+Trilingual Next.js App Router storefront and Azerbaijani administration for Telefon28Mobile in Baku. The owner manages the catalog through Supabase. Publishing a product takes effect on the next request. Buyers can browse, save favorites and prepare a WhatsApp inquiry without an account.
 
-## Run locally
+## Development
 
-Use Node.js 22.23 or a compatible newer LTS release and npm. From the project root:
+Use Node 22 and npm. Run `npm ci`, copy `.env.example` to your ignored local environment file and fill in the settings described in [DATABASE_SETUP.md](DATABASE_SETUP.md). Use `npm run dev` and visit /az, /ru, /en or /admin/login. Set NEXT_PUBLIC_SITE_URL to the actual origin when testing share links and password recovery. Keep deployment and database credentials outside Git.
 
-```sh
-npm ci
-npm run dev
+## Features and implementation
+
+- The existing dark-first, light-switchable storefront retains its hero, motion effects, localized URLs, catalog filters, search, quick view, cart and wishlist. The owner-supplied vector logo is used in navigation and the footer.
+- Published products, active categories, branches, settings and gallery images are read with the publishable key under PostgreSQL RLS. Old marketplace snapshots are historical research. No sample inventory is seeded. The storefront distinguishes an empty catalog from a connection failure.
+- Catalog variants use a separate stable slug per priced configuration. Public product images are decoded, resized and re-encoded as WebP. Only upload images approved for public distribution, even when the product is a draft.
+- Authenticated admin routes verify Supabase claims and a server-managed membership. Privileged store edits use the administrator's session under RLS. The server-only ingest client calls restricted database functions for throttled trade-ins and aggregate metrics.
+- WhatsApp checkout re-reads published configurations and prices. If an item changes, the shopper reviews the refreshed basket. The URL carries unit and extended prices, quantities, links and the total. The customer sends the actual message in WhatsApp.
+- Trade-in submissions require consent. No customer photo upload, buyer password, payment or order-confirmation database is involved. Request contacts are visible only to assigned administrators.
+- Session estimates are per browser tab and expire after 30 minutes of inactivity. Product views are deduplicated for one minute in that tab. WhatsApp order-button clicks and successful trade-ins are separate events. Aggregates use Baku dates. Browser blockers, opt-outs and abuse limits affect totals. Service/contact WhatsApp links are outside the order-click metric.
+- Branches and owner-provided map appear on /az/stores and localized contact pages. The map is a single external place link.
+
+## Structure
+
+App Router pages and handlers are in `app`; storefront and admin interfaces in `components`; typed catalog data, server clients, validation and import code in `lib`. Messages live in `lib/i18n.ts`. Zustand handles browser-only preferences for shopping. next-intl, next-themes, Motion, Radix, Tailwind, Zod, ExcelJS and Papa Parse support the UI. Database schema and policies are versioned under `supabase/migrations`.
+
+## Quality checks
+
+Run `npm run lint`, `npm run typecheck` and `npm run build`. For full integration coverage, run Docker and the Supabase CLI in this folder:
+
+```powershell
+npx supabase start
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local.ps1
 ```
 
-Open http://localhost:3000/az. For a production preview, run `npm run build` followed by `npm start`. The shopping demo works without secret keys. Set the optional canonical origin in `.env.example` when deploying outside Vercel.
+The test helper uses only the local loopback stack. It passes temporary credentials in process memory, builds against that environment, starts the app on port 3028 and runs Chrome tests. Never run fixture setup against hosted data. Rebuild with the desired environment before serving or deploying. For public smoke tests set TEST_ORIGIN to the authorized preview and run the storefront suite.
 
-## Shopping experience
+## Operations
 
-- Switch between Azerbaijani, Russian and English while preserving the route and catalog filters. The root URL remembers the last language.
-- Browse six illustrated categories, featured products and brands. Search, filter, sort, paginate or open a quick view from the catalog.
-- Inspect seller-attributed prices, known product attributes, alternative configurations, related products and enlarged original illustrations.
-- Save favorites, change cart quantities and prepare a pickup or delivery request. Checkout validates the form in the browser and opens WhatsApp with the selected configurations and total. The customer reviews and sends the message in WhatsApp.
-- Explore store information, services, contact, FAQ, promotions and owner-review legal pages.
-- Explore read-only administration and account prototypes. No password collection, real orders, stock editing, payment processing or customer database is enabled.
+[Database and first-admin setup](DATABASE_SETUP.md) · [Owner guide in Azerbaijani](ADMIN_GUIDE_AZ.md) · [Spreadsheet import](IMPORT_GUIDE.md) · [Release checklist](DEPLOYMENT_CHECKLIST.md) · [Implementation report](IMPLEMENTATION_REPORT.md).
 
-## Architecture
-
-Next.js App Router and React use strict TypeScript. Tailwind CSS and theme variables style both themes. Motion for React handles entrance, viewport and counter transitions. Radix Dialog provides focus trapping and keyboard dismissal, with a locally adapted shadcn/ui Badge and button variants. Lucide supplies functional icons. Zod validates inquiry fields.
-
-| Location | Responsibility |
-| --- | --- |
-| `app/[locale]` | Server-rendered routes, metadata, loading and error boundaries |
-| `components` | Store shell, hero, catalog, product gallery, cart, forms and prototypes |
-| `data/products.ts` | Typed catalog snapshots with source URLs and UTC review time |
-| `lib/i18n.ts` and `i18n/request.ts` | Interface messages and next-intl request configuration |
-| `lib/store.ts` | Zustand cart and favorites, persisted in this browser |
-| `lib/art.ts` and `public/art` | Original artwork and model-to-illustration mapping |
-| `tests` | Browser and route checks |
-
-Locale prefixes determine interface language. The header stores language preference in a cookie. next-themes applies the selected theme before hydration and persists that choice locally. Product model and finish names retain their advertised spelling.
-
-## Product evidence
-
-The dataset contains 60 configurations from 49 model names across 11 brands. Prices are seller-advertised snapshots in AZN. Most sources are seller catalog pages. Two sources are individual listings with explicit condition information. See [RESEARCH.md](RESEARCH.md) for the sources, contact verification and limitations. The demo uses original illustrations, including family-level representations where exact product photography is unavailable.
-
-## Run checks
-
-```sh
-npm run lint
-npm run typecheck
-npm run build
-npm test
-```
-
-Playwright uses installed Google Chrome and starts the local production server on port 3028. Set `TEST_ORIGIN` to check an existing deployment. The suite covers 320, 375, 390, 768, 1024, 1440 and 1920 pixel widths, localized navigation, themes, filter persistence, quick view, favorites, cart quantities and inquiry validation.
-
-## Deployment
-
-The Vercel project uses the Next.js framework preset and the repository root. Import the GitHub repository into Vercel, select `main` for production and use the default build settings. Vercel's production project URL supplies the SEO origin unless `NEXT_PUBLIC_SITE_URL` overrides it. Git and Vercel credentials stay outside the source tree.
-
-## Commercial launch work
-
-Obtain owner approval for public branding, licensed photographs, legal copy, service terms, stock and prices. Connect a maintained catalog feed. For accounts, addresses, order history and writable administration, add a secure backend with server-side roles, authorization, auditing and persistence. Confirm fulfillment rules and integrate payments only after selecting an appropriate provider. Monitor real-user performance once production traffic is available.
+The owner should review open trade-ins regularly and remove closed requests after the approved retention period. No automatic deletion schedule has been authorized. Confirm SMTP delivery, privacy terms, backups, domain verification and an eligible commercial hosting plan before business launch. Supabase Free quotas and pausing can affect availability.

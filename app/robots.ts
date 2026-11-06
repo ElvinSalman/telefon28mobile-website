@@ -4,7 +4,14 @@ export default function robots() {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: ["/*/admin", "/*/checkout", "/*/account"],
+      disallow: [
+        "/admin",
+        "/auth",
+        "/api",
+        "/*/admin",
+        "/*/checkout",
+        "/*/account",
+      ],
     },
     sitemap: origin + "/sitemap.xml",
   };

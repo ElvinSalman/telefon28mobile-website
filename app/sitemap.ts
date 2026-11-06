@@ -1,7 +1,9 @@
 import { origin } from "@/lib/config";
 import { locales } from "@/lib/i18n";
-import { products } from "@/data/products";
-export default function sitemap() {
+import { loadShop } from "@/lib/catalog-data";
+export const dynamic = "force-dynamic";
+export default async function sitemap() {
+  const { products } = await loadShop();
   return locales.flatMap((l) =>
     [
       "",
@@ -9,6 +11,8 @@ export default function sitemap() {
       "/about",
       "/services",
       "/contact",
+      "/stores",
+      "/trade-in",
       "/faq",
       ...products.map((p) => "/products/" + p.slug),
     ].map((p) => ({

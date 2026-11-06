@@ -1,3 +1,5 @@
+import { Inventory } from "@/components/inventory";
+import { loadShop } from "@/lib/catalog-data";
 import { NextIntlClientProvider } from "next-intl";
 import { notFound } from "next/navigation";
 import { locales, messages, type Locale } from "@/lib/i18n";
@@ -17,7 +19,9 @@ export default async function Layout({
       messages={messages(locale)}
       timeZone="Asia/Baku"
     >
-      <Shell locale={locale}>{children}</Shell>
+      <Inventory data={await loadShop()}>
+        <Shell locale={locale}>{children}</Shell>
+      </Inventory>
     </NextIntlClientProvider>
   );
 }

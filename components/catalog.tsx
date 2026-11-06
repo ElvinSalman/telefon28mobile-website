@@ -2,12 +2,13 @@
 import { useState } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
 import { Search, SlidersHorizontal } from "lucide-react";
-import { products } from "@/data/products";
+import { useInventory } from "./inventory";
 import { useText } from "./hooks";
 import { Card } from "./products";
 import { Modal } from "./modal";
 export function Catalog() {
-  const { t } = useText();
+  const { t, locale } = useText();
+  const { products, categories, offline } = useInventory();
   const params = useSearchParams();
   const router = useRouter();
   const path = usePathname();
@@ -50,7 +51,7 @@ export function Catalog() {
               .map((v) => (
                 <option value={v} key={v}>
                   {k === "category"
-                    ? t(v as (typeof products)[number]["category"])
+                    ? categories.find((c) => c.slug === v)?.[locale] || v
                     : v}
                 </option>
               ))}
@@ -122,7 +123,7 @@ export function Catalog() {
               <Card key={p.slug} p={p} />
             ))}
           </div>
-          {!result.length && <p>{t("empty")}</p>}
+          {!result.length && <p>{t(offline ? "catalogOffline" : "empty")}</p>}
           <div className="chips">
             {Array.from({ length: pages }, (_, i) => (
               <button
