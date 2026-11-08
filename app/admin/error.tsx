@@ -1,0 +1,1 @@
+"use client";export default function AdminError({reset}:{reset:()=>void}){return <section className="wrap inner"><h1>Məlumatlar yüklənmədi</h1><p>Bağlantını yoxlayın və yenidən cəhd edin.</p><button className="button primary" onClick={reset}>Yenidən yoxla</button></section>}

@@ -1,3 +1,4 @@
+import {AdminTheme} from "@/components/admin-theme";
 import type { Metadata } from "next";
 import "@/app/shop.css";
 export const metadata: Metadata = {
@@ -7,8 +8,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <main lang="az" className="adminArea">
+    <AdminTheme><main lang="az" className="adminArea">
       {children}
-    </main>
+    </main></AdminTheme>
   );
 }

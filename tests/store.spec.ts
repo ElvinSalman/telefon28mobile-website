@@ -41,11 +41,10 @@ for (const [locale, theme] of [
     ])
       await expect(page.getByText(a, { exact: true })).toBeVisible();
   });
-test("localized 404 and guarded routes", async ({ request }) => {
+test("localized 404 and guarded routes", async ({ request, page }) => {
   expect((await request.get("/en/missing")).status()).toBe(404);
-  expect((await request.get("/admin/products")).url()).toContain(
-    "/admin/login",
-  );
+  await page.goto("/admin/products");
+  await expect(page).toHaveURL(/\/admin\/login/);
   expect((await request.get("/auth/callback")).url()).toContain(
     "/admin/login?error=link",
   );

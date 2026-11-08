@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   try {
     const { kind, item } = z
       .object({
-        kind: z.enum(["session", "product_view", "whatsapp_click"]),
+        kind: z.enum(["session", "page_view", "product_view", "whatsapp_click"]),
         item: slug.optional(),
       })
       .parse(await body(req, 512));

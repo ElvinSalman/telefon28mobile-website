@@ -13,6 +13,7 @@ import {
 import { useInventory } from "./inventory";
 import { artFor } from "@/lib/art";
 import { useText } from "./hooks";
+import {CategoryVisual} from "./category-visual";
 import { Card } from "./products";
 
 export function Home() {
@@ -83,7 +84,7 @@ export function Home() {
               </Link>
             </div>
           </div>
-          <div className="heroVisual">
+          <div className={"heroVisual "+(hero?.images?.length?"photographicHero":"")}>
             <div className="orbit" />
             <motion.div
               className="device"
@@ -93,7 +94,7 @@ export function Home() {
             >
               <Image
                 unoptimized
-                src={hero ? artFor(hero) : "/art/hero.svg"}
+                src={hero ? artFor(hero) : "/brand/telefon-28-mobile.svg"}
                 width={760}
                 height={620}
                 priority
@@ -162,20 +163,7 @@ export function Home() {
                 className={"cat cat" + i}
                 href={link("catalog?category=" + c.slug)}
               >
-                <Image
-                  src={
-                    "/art/" +
-                    (["phone", "watch", "audio", "gaming", "tablet"].includes(
-                      c.slug,
-                    )
-                      ? c.slug
-                      : "other") +
-                    ".svg"
-                  }
-                  alt=""
-                  width={210}
-                  height={150}
-                />
+                <CategoryVisual category={c.slug}/>
                 <div>
                   {c[locale]}
                   <ArrowUpRight size={15} />

@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { adminDb } from "@/lib/db";
 import Link from "next/link";
 import { logout } from "../actions";
+import {AdminThemeSwitch} from "@/components/admin-theme";
 import { AdminConsole } from "@/components/admin-console";
 const sections = {
   overview: "İcmal",
@@ -19,14 +20,14 @@ export default async function Admin({
   searchParams,
 }: {
   params: Promise<{ section?: string[] }>;
-  searchParams: Promise<{ days?: string }>;
+  searchParams: Promise<{ days?: string;new?:string }>;
 }) {
   const db = await adminDb();
   if (!db) redirect("/admin/login");
   const route = (await params).section || [];
   const tab = route[0] || "overview";
   if (route.length > 1 || !Object.hasOwn(sections, tab)) notFound();
-  const days = Number((await searchParams).days) || 7;
+  const query=await searchParams;const days = Number(query.days) || 7;
   const start = new Date(
     new Date().getTime() +
       4 * 3600000 -
@@ -79,9 +80,9 @@ export default async function Admin({
     <div className="wrap inner">
       <header className="adminHeader">
         <Link href="/az">Telefon28Mobile ↗</Link>
-        <form action={logout}>
+        <div className="contactActions"><AdminThemeSwitch/><form action={logout}>
           <button>Çıxış</button>
-        </form>
+        </form></div>
       </header>
       <h1>{sections[tab as keyof typeof sections]}</h1>
       <nav className="adminTabs">
@@ -98,6 +99,7 @@ export default async function Admin({
       <AdminConsole
         key={tab}
         tab={tab}
+        newProduct={query.new==="1"}
         data={{
           products: products.data || [],
           brands: brands.data || [],

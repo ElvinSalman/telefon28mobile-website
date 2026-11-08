@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { login, recover } from "../actions";
 export default async function Login({
   searchParams,
@@ -8,7 +9,7 @@ export default async function Login({
   return (
     <section className="adminLogin box">
       <h1>İdarəetməyə giriş</h1>
-      <p>Telefon28Mobile</p>
+      <p>Telefon28Mobile mağazasının idarəçiləri üçün.</p><small>Dəvət məktubundan şifrənizi təyin edin, sonra hesabınıza daxil olun.</small>
       {q.error && (
         <p role="alert">
           Giriş mümkün olmadı. Məlumatları və idarəçi icazəsini yoxlayın.
@@ -31,6 +32,7 @@ export default async function Login({
         </label>
         <button className="button primary">Daxil ol</button>
       </form>
+      <Link className="textlink" href="/az">← Mağazaya qayıt</Link>
       <details>
         <summary>Şifrəni bərpa et</summary>
         <form action={recover}>

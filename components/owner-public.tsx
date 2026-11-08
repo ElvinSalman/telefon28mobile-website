@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { MapPin, ArrowUpRight } from "lucide-react";
+import { MapPin, ArrowUpRight, MessageCircle,Navigation } from "lucide-react";
+import {WhatsAppLink} from "./whatsapp-link";
 import Link from "next/link";
 import { useText } from "./hooks";
 import { mapUrl } from "@/lib/business";
@@ -11,15 +12,15 @@ export function Stores() {
   const { locations, whatsapp } = useInventory();
   return (
     <section className="wrap inner">
-      <h1>{t("stores")}</h1>
+      <div className="storeIntro"><div className="kicker">TELEFON 28 MOBILE · BAKI</div><h1>{t("stores")}</h1><p>{t("storesIntro")}</p></div>
       <div className="branchGrid">
         {locations.map((x) => (
-          <article className="box" key={x.address}>
+          <article className="box branchCard" key={x.address}>
             <MapPin />
-            <h3>{x.name}</h3>
-            <p>{x.address}</p>
+            <h2>{x.address}</h2>
             {x.phone && <p>{x.phone}</p>}
             {x.hours && <p>{x.hours}</p>}
+            <WhatsAppLink className="button outline" href={"https://wa.me/"+whatsapp+"?text="+encodeURIComponent(t("branchInquiry")+" "+x.address)}><MessageCircle size={17}/>{t("inquire")}</WhatsAppLink>
             {x.map_url && (
               <a className="textlink" href={x.map_url}>
                 {t("map")}
@@ -29,19 +30,10 @@ export function Stores() {
         ))}
       </div>
       <div className="box mapCard">
-        <MapPin />
-        <h2>Telefon 28 Store</h2>
-        <a
-          className="button primary"
-          target="_blank"
-          rel="noreferrer"
-          href={mapUrl}
-        >
-          {t("map")} <ArrowUpRight size={16} />
-        </a>
-        <a className="textlink" href={"https://wa.me/" + whatsapp}>
-          WhatsApp ↗
-        </a>
+        <div className="mapEmblem" aria-hidden><Navigation/><span>BAKI</span></div>
+        <div className="mapContent"><div className="kicker">{t("map")}</div><h2>Telefon 28 Store</h2><p>{t("mapIntro")}</p><div className="contactActions">
+        <a className="button primary" target="_blank" rel="noreferrer" href={mapUrl}>{t("map")} <ArrowUpRight size={16}/></a>
+        <WhatsAppLink className="button outline" href={"https://wa.me/"+whatsapp}><MessageCircle size={17}/>WhatsApp</WhatsAppLink></div></div>
       </div>
     </section>
   );

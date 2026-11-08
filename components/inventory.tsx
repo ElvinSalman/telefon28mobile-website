@@ -28,6 +28,7 @@ export function Inventory({
     try {
       if (navigator.doNotTrack === "1") return;
       const now = Date.now();
+      const pageKey="t28-page-"+path;if(now-Number(sessionStorage.getItem(pageKey))>1000){track("page_view");sessionStorage.setItem(pageKey,String(now))}
       if (now - Number(sessionStorage.getItem("t28-last")) > 1800000)
         track("session");
       sessionStorage.setItem("t28-last", String(now));

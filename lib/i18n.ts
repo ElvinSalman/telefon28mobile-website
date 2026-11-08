@@ -1,6 +1,9 @@
 export const locales = ["az", "ru", "en"] as const;
 export type Locale = (typeof locales)[number];
 export const copy = {
+"storesIntro":["Bakıda üç ünvanımızdan birinə yaxınlaşın. Məhsul seçimi və suallarınız üçün WhatsApp-da bizə yazın.","Ждём вас по трём адресам в Баку. Напишите нам в WhatsApp, чтобы подобрать устройство и уточнить детали.","Visit one of our three Baku locations. Message us on WhatsApp for help choosing a device."],
+"branchInquiry":["Salam! Bu filial haqqında məlumat almaq istəyirəm:","Здравствуйте! Хочу уточнить информацию об этом магазине:","Hello! I would like information about this branch:"],
+"mapIntro":["Telefon 28 Store ünvanını Google Maps-də açın və marşrutunuzu planlaşdırın.","Откройте Telefon 28 Store в Google Maps и постройте маршрут.","Open Telefon 28 Store in Google Maps to plan your visit."],
   new: ["Yeni", "Новый", "New"],
   used: ["İşlənmiş", "Подержанный", "Used"],
   refurbished: ["Bərpa edilmiş", "Восстановленный", "Refurbished"],

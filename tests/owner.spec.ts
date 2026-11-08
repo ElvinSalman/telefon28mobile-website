@@ -8,7 +8,7 @@ test.describe.configure({ mode: "serial" });
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
 const secret = process.env.SUPABASE_SECRET_KEY || "";
-const local = url === "http://127.0.0.1:54321" && !process.env.TEST_ORIGIN;
+const local = url === "http://127.0.0.1:55321" && !process.env.TEST_ORIGIN;
 const run = randomUUID().slice(0, 8);
 const item = "qa-" + run;
 const pass = randomUUID() + "Aa9!";
@@ -98,8 +98,8 @@ test("anonymous, ordinary and administrator RLS/storage", async () => {
   const anon = sdk(pub),
     ordinary = sdk(pub),
     admin = sdk(pub);
-  await ordinary.auth.signInWithPassword({ email: user, password: pass });
-  await admin.auth.signInWithPassword({ email, password: pass });
+  expect((await ordinary.auth.signInWithPassword({ email: user, password: pass })).error).toBeNull();
+  expect((await admin.auth.signInWithPassword({ email, password: pass })).error).toBeNull();
   for (const c of [anon, ordinary]) {
     expect(
       (await c.from("brands").insert({ slug: item, name: item }).select())
@@ -124,7 +124,7 @@ test("anonymous, ordinary and administrator RLS/storage", async () => {
       (await c.from("admin_memberships").insert({ user_id: userId })).error,
     ).toBeTruthy();
   }
-  expect((await admin.rpc("shop_admin")).data).toBe(true);
+  const role = await admin.rpc("shop_admin"); expect(role.error).toBeNull(); expect(role.data).toBe(true);
   expect(
     (await admin.from("brands").insert({ name: item, slug: item })).error,
   ).toBeNull();
@@ -223,7 +223,7 @@ test("protected UI, publish/import, real uploaded image, cart quote, trade-in an
   expect((await importing).status()).toBe(204);
   await expect(page.getByRole("status")).toContainText("Saxlanıldı");
   await page.goto("/admin/products");
-  await page.getByPlaceholder("Ad, brend və ya slug").fill(item);
+  await page.getByRole("textbox", { name: "Axtar", exact: true }).fill(item);
   await page
     .locator("article")
     .filter({ hasText: "QA Phone" })
@@ -293,7 +293,7 @@ test("protected UI, publish/import, real uploaded image, cart quote, trade-in an
         .single()
     ).data?.consent_at,
   ).toBeTruthy();
-  for (const k of ["session", "product_view", "whatsapp_click", "trade_in"])
+  for (const k of ["session", "page_view", "product_view", "whatsapp_click", "trade_in"])
     expect(
       (
         await service
@@ -304,7 +304,7 @@ test("protected UI, publish/import, real uploaded image, cart quote, trade-in an
       ).data?.length,
     ).toBe(1);
   await page.goto("/admin/products");
-  await page.getByPlaceholder("Ad, brend və ya slug").fill(item);
+  await page.getByRole("textbox", { name: "Axtar", exact: true }).fill(item);
   page.once("dialog", (d) => d.accept());
   await page
     .locator("article")

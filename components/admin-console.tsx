@@ -93,13 +93,14 @@ function Field({
     </label>
   );
 }
-export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
+export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; data: Data;newProduct?:boolean }) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState("");
+  const [statusFilter,setStatusFilter]=useState("");
   const [sort, setSort] = useState("updated");
-  const [selected, select] = useState<string | null>(null);
+  const [selected, select] = useState<string | null>(newProduct ? "" : null);
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [preview, setPreview] = useState("");
   const edit = d.products.find((p) => p.slug === selected);
@@ -174,7 +175,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
     .filter((p) =>
       (p.name + " " + p.slug + " " + p.brand_id)
         .toLowerCase()
-        .includes(filter.toLowerCase()),
+        .includes(filter.toLowerCase())&&(!statusFilter||p.status===statusFilter),
     )
     .sort((a, b) =>
       sort === "price"
@@ -190,6 +191,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
       </p>
       {(tab === "overview" || tab === "analytics") && (
         <>
+          {tab==="overview"&&<section className="box adminWelcome"><div><div className="kicker">TELEFON28MOBILE</div><h2>Mağazanızı idarə edin</h2><p>Məhsul əlavə edin, qiymətləri yeniləyin və müştəri müraciətlərini izləyin.</p></div><Link className="button primary" href="/admin/products?new=1">+ Məhsul əlavə et</Link><ol><li>Brend və kateqoriyanı seçin, model və qiyməti yazın.</li><li>Məhsulu saxlayın və öz fotolarınızı yükləyin.</li><li>“Dərc edilib” seçin. Məhsul saytda görünəcək.</li></ol><Link className="textlink" href="/admin/import">CSV / XLSX ilə toplu əlavə et ↗</Link></section>}
           <div className="chips">
             {[1, 7, 30, 90].map((n) => (
               <Link key={n} href={"?days=" + n}>
@@ -199,6 +201,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
           </div>
           <div className="adminGrid">
             {Object.entries({
+              page_view: "Səhifə ziyarətləri",
               session: "Brauzer sessiyaları",
               product_view: "Məhsula baxış",
               whatsapp_click: "WhatsApp keçidləri",
@@ -310,6 +313,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
               Yeni məhsul
             </button>
           </div>
+          <label className="statusFilter">Status<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Bütün məhsullar</option>{states.map(s=><option key={s} value={s}>{statusName[s]}</option>)}</select></label>
           {selected !== null && (
             <div className="box" key={edit?.id||"new-"+selected}>
               <form
@@ -399,13 +403,13 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
                     />
                   </label>
                 ))}
-                <label>
+                <details><summary>Əlavə xüsusiyyətlər</summary><p>İstəyə görə yazın. Məsələn, {"{\"Ekran\":\"6.1 düym\"}"}</p><label>
                   Xüsusiyyətlər (JSON)
                   <textarea
                     name="specifications"
                     defaultValue={JSON.stringify(edit?.specifications || {})}
                   />
-                </label>
+                </label></details>
                 <label>
                   Status
                   <select name="status" defaultValue={edit?.status || "draft"}>
@@ -469,6 +473,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
               <button onClick={() => select(null)}>Bağla</button>
             </div>
           )}
+          {!sorted.length&&<div className="box"><h3>{d.products.length?"Uyğun məhsul tapılmadı":"İlk məhsulunuzu əlavə edin"}</h3><p>{d.products.length?"Axtarış və status filtrini dəyişin.":"Başlamaq üçün model, qiymət və bir neçə foto kifayətdir."}</p></div>}
           {sorted.map((p) => (
             <article className="tableRow" key={p.slug}>
               <Image
@@ -487,7 +492,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
                 </small>
               </span>
               <b>{p.price} ₼</b>
-              <span>{statusName[p.status]}</span>
+              <span className={"statusBadge status-"+p.status}>{statusName[p.status]}</span>
               <button
                 onClick={() => {
                   select(p.slug);
@@ -748,7 +753,7 @@ export function AdminConsole({ tab, data: d }: { tab: string; data: Data }) {
                 </select>
               </article>
             ))}
-          {!d.requests.length && <p>Müraciət yoxdur.</p>}
+          {!d.requests.length && <div className="box"><h3>Hələ müraciət yoxdur</h3><p>Saytın Trade-in formasından göndərilən cihaz və əlaqə məlumatları burada görünəcək.</p><Link className="textlink" href="/az/trade-in">Trade-in formasına bax ↗</Link></div>}
         </>
       )}
     </>
