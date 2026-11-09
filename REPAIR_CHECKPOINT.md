@@ -11,3 +11,5 @@ Local acceptance: 21 passed, 1 production-only skipped before final template/con
 Next: finish lint/typecheck + local suite; test rollback in a transaction; apply hosted migration; commit/push existing main and deploy existing Vercel project; run scripts/verify-hosted.mjs (ephemeral QA users), including safe Xiaomi name/price edit/restoration; verify deployment SHA; complete acceptance report and AZ owner guide.
 
 Separate owner email confirmed by user: Kamranshohretli@icloud.com. Private terminal provisioning prepared; owner must enter a private password. Existing admin password/account untouched. Do not run any earlier bootstrap/reset helper.
+
+Final local run: 21 passed, 1 intentionally skipped (hosted Xiaomi regression); lint and TypeScript/build pass. Tested rollback disables new RPC grants inside a transaction and ROLLBACK restores them. Authorized migration applied hosted; CLI catalog-cache warning is non-fatal, confirm migration list. Production release/acceptance is next. Owner guide: OWNER_GUIDE_AZ.md.

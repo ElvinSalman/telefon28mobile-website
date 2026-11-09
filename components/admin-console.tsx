@@ -2,9 +2,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {ProductsPanel} from "./admin-products";
-import {SimpleImportPanel} from "./admin-import";
-import {adminRequest} from "@/lib/admin-client";
+import { ProductsPanel } from "./admin-products";
+import { SimpleImportPanel } from "./admin-import";
+import { adminRequest } from "@/lib/admin-client";
 import { slugify } from "@/lib/validation";
 export type Row = {
   id: string;
@@ -24,7 +24,7 @@ export type Row = {
   featured: boolean;
   source_url: string | null;
   source_verified_at: string | null;
-  import_key?:string|null;
+  import_key?: string | null;
 };
 type Cat = {
   slug: string;
@@ -46,7 +46,9 @@ type Store = {
 };
 export type Data = {
   products: Row[];
-  requestCount:number;days:number;requestStatus:string;
+  requestCount: number;
+  days: number;
+  requestStatus: string;
   categories: Cat[];
   brands: { slug: string; name: string }[];
   stores: Store[];
@@ -99,12 +101,35 @@ function Field({
     </label>
   );
 }
-export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: string; data: Data;newProduct?:boolean;editSlug?:string }) {
+export function AdminConsole({
+  tab,
+  data: d,
+  newProduct = false,
+  editSlug,
+}: {
+  tab: string;
+  data: Data;
+  newProduct?: boolean;
+  editSlug?: string;
+}) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function save(value:unknown){setBusy(true);try{await adminRequest(value);setNotice("Saxlanıldı.");router.refresh();return true;}catch(e){setNotice(e instanceof Error?e.message:"Əməliyyat tamamlanmadı.");return false;}finally{setBusy(false)}}
+  async function save(value: unknown) {
+    setBusy(true);
+    try {
+      await adminRequest(value);
+      setNotice("Saxlanıldı.");
+      router.refresh();
+      return true;
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Əməliyyat tamamlanmadı.");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
   const wrap =
     (action: (f: FormData) => void) =>
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -145,7 +170,29 @@ export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: 
       </p>
       {(tab === "overview" || tab === "analytics") && (
         <>
-          {tab==="overview"&&<section className="box adminWelcome"><div><div className="kicker">TELEFON28MOBILE</div><h2>Mağazanızı idarə edin</h2><p>Məhsul əlavə edin, qiymətləri yeniləyin və müştəri müraciətlərini izləyin.</p></div><Link className="button primary" href="/admin/products?new=1">+ Məhsul əlavə et</Link><ol><li>Brend və kateqoriyanı seçin, model və qiyməti yazın.</li><li>Fotoları seçin, sıralayın və əsas şəkli müəyyən edin.</li><li>“Dərc edilib” seçin. Məhsul saytda görünəcək.</li></ol><Link className="textlink" href="/admin/import">CSV / XLSX ilə toplu əlavə et ↗</Link></section>}
+          {tab === "overview" && (
+            <section className="box adminWelcome">
+              <div>
+                <div className="kicker">TELEFON28MOBILE</div>
+                <h2>Mağazanızı idarə edin</h2>
+                <p>
+                  Məhsul əlavə edin, qiymətləri yeniləyin və müştəri
+                  müraciətlərini izləyin.
+                </p>
+              </div>
+              <Link className="button primary" href="/admin/products?new=1">
+                + Məhsul əlavə et
+              </Link>
+              <ol>
+                <li>Brend və kateqoriyanı seçin, model və qiyməti yazın.</li>
+                <li>Fotoları seçin, sıralayın və əsas şəkli müəyyən edin.</li>
+                <li>“Dərc edilib” seçin. Məhsul saytda görünəcək.</li>
+              </ol>
+              <Link className="textlink" href="/admin/import">
+                CSV / XLSX ilə toplu əlavə et ↗
+              </Link>
+            </section>
+          )}
           <div className="chips">
             {[1, 7, 30, 90].map((n) => (
               <Link key={n} href={"?days=" + n}>
@@ -159,14 +206,26 @@ export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: 
               session: "Brauzer sessiyaları",
               product_view: "Məhsula baxış",
               whatsapp_click: "WhatsApp keçidləri",
-
             }).map(([k, v]) => (
               <article className="box" key={k}>
                 <small>{v}</small>
                 <h2>{totals(k)}</h2>
               </article>
             ))}
-            <article className="box"><small>Saxlanmış Trade-in müraciətləri · {d.days} gün</small><h2 data-testid="request-count">{d.requestCount}</h2><Link href={"/admin/trade-in?days="+d.days+"&request_status="+d.requestStatus}>Müraciətlərə bax →</Link></article>
+            <article className="box">
+              <small>Saxlanmış Trade-in müraciətləri · {d.days} gün</small>
+              <h2 data-testid="request-count">{d.requestCount}</h2>
+              <Link
+                href={
+                  "/admin/trade-in?days=" +
+                  d.days +
+                  "&request_status=" +
+                  d.requestStatus
+                }
+              >
+                Müraciətlərə bax →
+              </Link>
+            </article>
           </div>
           <small>
             Sayğaclar Bakı vaxtı ilə hesablanır. WhatsApp göstəricisi keçidə
@@ -240,8 +299,10 @@ export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: 
           )}
         </>
       )}
-      {tab === "products" && <ProductsPanel data={d} newProduct={newProduct} editSlug={editSlug}/> }
-      {tab === "import" && <SimpleImportPanel data={d}/> }
+      {tab === "products" && (
+        <ProductsPanel data={d} newProduct={newProduct} editSlug={editSlug} />
+      )}
+      {tab === "import" && <SimpleImportPanel data={d} />}
       {tab === "categories" && (
         <>
           <form
@@ -261,7 +322,20 @@ export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: 
               {d.brands.map((b) => b.name + " (" + b.slug + ")").join(", ")}
             </small>
           </form>
-          <details className="box"><summary>Brend adlarını redaktə et</summary>{d.brands.map(b=><form key={b.slug} onSubmit={wrap(f=>save({op:"brand",slug:b.slug,name:f.get("name")}))}><Field name="name" label={b.slug} value={b.name} required/>{button}</form>)}</details>
+          <details className="box">
+            <summary>Brend adlarını redaktə et</summary>
+            {d.brands.map((b) => (
+              <form
+                key={b.slug}
+                onSubmit={wrap((f) =>
+                  save({ op: "brand", slug: b.slug, name: f.get("name") }),
+                )}
+              >
+                <Field name="name" label={b.slug} value={b.name} required />
+                {button}
+              </form>
+            ))}
+          </details>
           {[...d.categories, null].map((c) => (
             <details key={c?.slug || "new"} className="box">
               <summary>{c?.az || "Yeni kateqoriya"}</summary>
@@ -366,48 +440,102 @@ export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: 
       )}
       {tab === "trade-in" && (
         <>
-          <div className="adminFilters"><label>Dövr<select value={d.days} onChange={e=>router.push("?days="+e.target.value+"&request_status="+d.requestStatus)}>{[1,7,30,90].map(n=><option key={n} value={n}>{n} gün</option>)}</select></label><label>Müraciət statusu<select value={d.requestStatus} onChange={e=>router.push("?days="+d.days+"&request_status="+e.target.value)}>
-            <option value="">Bütün statuslar</option>
-            {["new", "contacted", "closed"].map((s) => (
-              <option key={s} value={s}>
-                {statusName[s]}
-              </option>
-            ))}
-          </select></label></div><p><span data-testid="request-count">{d.requestCount}</span> saxlanmış müraciət · Bakı vaxtı ilə {d.days} gün</p>
-          {d.requests
-            .map((r) => (
-              <article className="box" key={r.id}>
-                <h3>
-                  {r.model} · {r.storage}
-                </h3>
-                <p>
-                  {r.name} · {r.phone}
-                </p>
-                <p>
-                  {({good:"Yaxşı",fair:"Orta",damaged:"Zədəli"} as Record<string,string>)[r.condition]||r.condition} · {r.notes}
-                </p>
-                <small>{new Date(r.created_at).toLocaleString("az-AZ",{timeZone:"Asia/Baku"})}</small>
-                <select
-                  aria-label="Status"
-                  value={r.status}
-                  disabled={busy}
-                  onChange={(e) =>
-                    save({ op: "trade", id: r.id, status: e.target.value })
-                  }
-                >
-                  {["new", "contacted", "closed"].map((s) => (
-                    <option key={s} value={s}>
-                      {statusName[s]}
-                    </option>
-                  ))}
-                </select>
-              </article>
-            ))}
-          {!d.requests.length && <div className="box"><h3>Hələ müraciət yoxdur</h3><p>Saytın Trade-in formasından göndərilən cihaz və əlaqə məlumatları burada görünəcək.</p><Link className="textlink" href="/az/trade-in">Trade-in formasına bax ↗</Link></div>}
+          <div className="adminFilters">
+            <label>
+              Dövr
+              <select
+                value={d.days}
+                onChange={(e) =>
+                  router.push(
+                    "?days=" +
+                      e.target.value +
+                      "&request_status=" +
+                      d.requestStatus,
+                  )
+                }
+              >
+                {[1, 7, 30, 90].map((n) => (
+                  <option key={n} value={n}>
+                    {n} gün
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Müraciət statusu
+              <select
+                value={d.requestStatus}
+                onChange={(e) =>
+                  router.push(
+                    "?days=" + d.days + "&request_status=" + e.target.value,
+                  )
+                }
+              >
+                <option value="">Bütün statuslar</option>
+                {["new", "contacted", "closed"].map((s) => (
+                  <option key={s} value={s}>
+                    {statusName[s]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p>
+            <span data-testid="request-count">{d.requestCount}</span> saxlanmış
+            müraciət · Bakı vaxtı ilə {d.days} gün
+          </p>
+          {d.requests.map((r) => (
+            <article className="box" key={r.id}>
+              <h3>
+                {r.model} · {r.storage}
+              </h3>
+              <p>
+                {r.name} · {r.phone}
+              </p>
+              <p>
+                {(
+                  { good: "Yaxşı", fair: "Orta", damaged: "Zədəli" } as Record<
+                    string,
+                    string
+                  >
+                )[r.condition] || r.condition}{" "}
+                · {r.notes}
+              </p>
+              <small>
+                {new Date(r.created_at).toLocaleString("az-AZ", {
+                  timeZone: "Asia/Baku",
+                })}
+              </small>
+              <select
+                aria-label="Status"
+                value={r.status}
+                disabled={busy}
+                onChange={(e) =>
+                  save({ op: "trade", id: r.id, status: e.target.value })
+                }
+              >
+                {["new", "contacted", "closed"].map((s) => (
+                  <option key={s} value={s}>
+                    {statusName[s]}
+                  </option>
+                ))}
+              </select>
+            </article>
+          ))}
+          {!d.requests.length && (
+            <div className="box">
+              <h3>Hələ müraciət yoxdur</h3>
+              <p>
+                Saytın Trade-in formasından göndərilən cihaz və əlaqə
+                məlumatları burada görünəcək.
+              </p>
+              <Link className="textlink" href="/az/trade-in">
+                Trade-in formasına bax ↗
+              </Link>
+            </div>
+          )}
         </>
       )}
     </>
   );
 }
-
-
