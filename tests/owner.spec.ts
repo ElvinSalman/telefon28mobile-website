@@ -93,6 +93,9 @@ async function auth() {
   ).toBeNull();
   return c;
 }
+async function absentFromStorage(path:string){
+ const parts=path.split('/');const listed=await (await auth()).storage.from('product-images').list(parts[0],{search:parts[1]});expect(listed.error).toBeNull();expect(listed.data?.some(x=>x.name===parts[1])).toBe(false);
+}
 async function product() {
   const r = await (
     await auth()
@@ -104,11 +107,15 @@ async function product() {
   expect(r.error).toBeNull();
   return r.data!;
 }
-test.describe.configure({ mode: "serial", timeout: 120000 });
+test.describe.configure({ mode: "serial", timeout: 240000 });
+const runtimeErrors=new WeakMap<Page,string[]>();
+test.afterEach(async({page})=>{expect(runtimeErrors.get(page)||[]).toEqual([]);});
 test.beforeEach(async ({ page }) => {
+  const errors:string[]=[];runtimeErrors.set(page,errors);page.on("pageerror",e=>errors.push(e.message));
   await page.route("**/api/events", (r) => r.fulfill({ status: 204 }));
 });
 test.beforeAll(async () => {
+  test.setTimeout(240000);
   if (!enabled) return;
   if(local)command("delete from shop_private.throttles");
   const service = sdk(secret);
@@ -126,6 +133,7 @@ test.beforeAll(async () => {
   }
 });
 test.afterAll(async () => {
+  test.setTimeout(240000);
   if (!enabled) return;
   const service = sdk(secret);
   const admin = await auth();
@@ -162,6 +170,96 @@ test.afterAll(async () => {
   for (const id of [uid, ordinaryId])
     if (id) expect((await service.auth.admin.deleteUser(id)).error).toBeNull();
 });
+test("production seeded Xiaomi name/price edit and exact callback allowlist", async ({
+  page,
+}) => {
+  test.skip(!hosted);
+  await login(page);
+  const db = await auth();
+  const snapshot = await db
+    .from("products")
+    .select("*")
+    .eq("slug", "xiaomi-redmi-note-15-256-gb-black")
+    .single();
+  expect(snapshot.error).toBeNull();
+  const original = snapshot.data!;
+  try {
+    await page.goto("/admin/products?edit=" + original.slug);
+    await expect(page.locator(".productEditor:visible")).toHaveCount(1);
+    await page
+      .getByRole("textbox", {name:"Ad və model",exact:true})
+      .fill("redmi note test");
+    await page.getByRole("button", { name: "Saxla", exact: true }).click();
+    await expect(page.locator(".productEditor:visible [role=status]")).toContainText(
+      "Saxlanıldı",
+    );
+    await page.reload();
+    await expect(page.getByRole("textbox", {name:"Ad və model",exact:true})).toHaveValue(
+      "redmi note test",
+    );
+    await page.goto("/az/products/" + original.slug);
+    await expect(page.getByRole("heading",{level:1})).toHaveText("redmi note test");
+    const current = (
+      await db.from("products").select("*").eq("id", original.id).single()
+    ).data!;
+    const response = await page.request.post("/api/admin", {
+      headers: { origin },
+      data: {
+        op: "product",
+        id: original.id,
+        expected_updated_at: current.updated_at,
+        record: { ...current, price: Number(original.price) + 0.01 },
+      },
+    });
+    expect(response.status()).toBe(200);
+    expect(
+      (
+        await db
+          .from("products")
+          .select("price,slug,source_verified_at")
+          .eq("id", original.id)
+          .single()
+      ).data,
+    ).toMatchObject({
+      price: Number(original.price) + 0.01,
+      slug: original.slug,
+      source_verified_at: original.source_verified_at,
+    });    await page.reload();await expect(page.getByRole('heading',{level:2,name:String(Number(original.price)+.01).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' ₼',exact:true})).toBeVisible();
+  } finally {
+    // Restore only fields this test changed, preserving any concurrent unrelated owner edits.
+    expect(
+      (
+        await db
+          .from("products")
+          .update({ name: original.name, price: original.price })
+          .eq("id", original.id)
+      ).error,
+    ).toBeNull();
+  }
+  const restored = (
+    await db.from("products").select("*").eq("id", original.id).single()
+  ).data!;
+  expect(restored).toMatchObject({
+    ...original,
+    updated_at: expect.any(String),
+  });
+  const link = await sdk(secret).auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: origin + "/auth/callback" },
+  });
+  expect(link.error).toBeNull();
+  const response = await fetch(link.data.properties!.action_link, {
+    redirect: "manual",
+  });
+  const destination = new URL(response.headers.get("location")!);
+  expect(destination.origin + destination.pathname).toBe(
+    origin + "/auth/callback",
+  );
+});
+
+
+
 test("RLS, allowlist, API and Storage reject anonymous and ordinary users", async ({
   page,
   request,
@@ -223,13 +321,13 @@ test("one-step creation, new inline brand, two photos, reorder, responsive edito
   await page.goto("/admin/products?new=1");
   await expect(page.locator(".productEditor:visible")).toHaveCount(1);
   await page
-    .getByLabel("Ad və model", { exact: true })
+    .getByRole("textbox", {name:"Ad və model",exact:true})
     .fill("iPhone QA " + run);
-  await page.locator("input[name=price]").fill("123.45");
-  await page.locator("input[name=brand]").fill("QA Brand " + run);
-  await page.locator("input[name=category_id]").fill("phone");
-  await page.locator("textarea[name=desc_az]").fill("QA təsvir " + run);
-  await page.locator("select[name=status]").selectOption("published");
+  await page.locator("input[name=price]:visible").fill("123.45");
+  await page.locator("input[name=brand]:visible").fill("QA Brand " + run);
+  await page.locator("input[name=category_id]:visible").fill("phone");
+  await page.locator("textarea[name=desc_az]:visible").fill("QA təsvir " + run);
+  await page.locator("select[name=status]:visible").selectOption("published");
   await page
     .getByLabel("Fotoları seç")
     .setInputFiles([
@@ -242,12 +340,16 @@ test("one-step creation, new inline brand, two photos, reorder, responsive edito
     .nth(1)
     .getByRole("button", { name: "Əvvələ" })
     .click();
-  await page.getByRole("button", { name: "Saxla", exact: true }).click();
-  await expect(page.locator(".productEditor [role=status]")).toContainText(
+  let uploads=0;
+  await page.route('**/api/admin/image',r=>++uploads===2?r.fulfill({status:503,contentType:'application/json',body:JSON.stringify({code:'STORAGE',message:'QA interrupted upload'})}):r.continue());
+  await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor:visible .adminError')).toContainText('QA interrupted upload');
+  const partial=(await (await auth()).from('products').select('status,product_images(path)').eq('name','iPhone QA '+run).single()).data!;expect(partial.status).toBe('draft');expect(partial.product_images).toHaveLength(1);
+  await page.unroute('**/api/admin/image');  await page.getByRole("button", { name: "Saxla", exact: true }).click();
+  await expect(page.locator(".productEditor:visible [role=status]")).toContainText(
     "Saxlanıldı",
     { timeout: 60000 },
   );
-  itemSlug = await page.locator("input[name=slug]").inputValue();
+  itemSlug = await page.locator(".productEditor:visible input[name=slug]").inputValue();
   const a = await auth();
   const r = await a
     .from("products")
@@ -261,7 +363,7 @@ test("one-step creation, new inline brand, two photos, reorder, responsive edito
   fixtureBrands.add(brandSlug);
   expect(r.data!.status).toBe("published");
   expect(r.data!.product_images).toHaveLength(2);
-  await expect(page.locator("input[name=slug]")).toHaveAttribute(
+  await expect(page.locator(".productEditor:visible input[name=slug]")).toHaveAttribute(
     "readonly",
     "",
   );
@@ -273,9 +375,10 @@ test("one-step creation, new inline brand, two photos, reorder, responsive edito
       ),
     ).toBe(true);
   }
-  for (const locale of ["az", "ru", "en"]) {
+  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'.vercel/admin-mobile-repair.png',fullPage:true});
+  await page.getByRole('button',{name:'Görünüşü dəyiş'}).click();await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'.vercel/admin-desktop-repair.png',fullPage:true});  for (const locale of ["az", "ru", "en"]) {
     await page.goto("/" + locale + "/products/" + itemSlug);
-    await expect(page.locator("h1")).toHaveText("iPhone QA " + run);
+    await expect(page.getByRole("heading",{level:1})).toHaveText("iPhone QA " + run);
     await expect(
       page.getByText("QA təsvir " + run, { exact: true }),
     ).toBeVisible();
@@ -303,6 +406,7 @@ test("existing ID edits every field, timestamp regression, concurrency and safe 
     { category_id: "phone" },
     { storage: "256 GB", color: "Ağ" },
     { description: { az: "Yeniləndi " + run, ru: "QA RU", en: "QA EN" } },
+    { specifications: { Ekran: "QA 6.1" } },
     { featured: true },
     { status: "draft" },
     { status: "published" },
@@ -382,22 +486,22 @@ test("existing ID edits every field, timestamp regression, concurrency and safe 
     ).status(),
   ).toBe(403);
   await page.goto("/admin/products?edit=" + itemSlug);
-  await expect(page.getByLabel("Ad və model", { exact: true })).toHaveValue(
+  await expect(page.getByRole("textbox", {name:"Ad və model",exact:true})).toHaveValue(
     p.name,
   );
-  await page.locator("input[name=price]").fill("-2");
+  await page.locator("input[name=price]:visible").fill("-2");
   await page.getByRole("button", { name: "Saxla", exact: true }).click();
   await expect(page.locator(".productEditor .adminError")).toBeVisible();
-  await expect(page.locator("input[name=price]")).toHaveValue("-2");
+  await expect(page.locator("input[name=price]:visible")).toHaveValue("-2");
   // Simulated transport interruption must keep unsaved content.
-  await page.locator("input[name=price]").fill("246");
+  await page.locator("input[name=price]:visible").fill("246");
   await page.route("**/api/admin", (r) => r.abort());
   await page.getByRole("button", { name: "Saxla", exact: true }).click();
   await expect(page.locator(".productEditor .adminError")).toBeVisible();
-  await expect(page.locator("input[name=price]")).toHaveValue("246");
+  await expect(page.locator("input[name=price]:visible")).toHaveValue("246");
   await page.unroute("**/api/admin");
   await page.getByRole("button", { name: "Saxla", exact: true }).click();
-  await expect(page.locator(".productEditor [role=status]")).toContainText(
+  await expect(page.locator(".productEditor:visible [role=status]")).toContainText(
     "Saxlanıldı",
   );
   expect((await product()).price).toBe(246);
@@ -433,16 +537,10 @@ test("photo primary/replacement/deletion updates Storage and requires no file in
   await page
     .getByRole("button", { name: "Foto əlavə et", exact: true })
     .click();
-  await expect(page.locator(".productEditor [role=status]")).toContainText(
+  await expect(page.locator(".productEditor:visible [role=status]")).toContainText(
     "Fotolar əlavə edildi",
   );
-  expect(
-    (
-      await page.request.get(
-        url + "/storage/v1/object/public/product-images/" + old,
-      )
-    ).ok(),
-  ).toBe(false);
+  await absentFromStorage(old);
   for (const left of [1, 0]) {
     p = await product();
     const path = p.product_images.sort(
@@ -457,16 +555,10 @@ test("photo primary/replacement/deletion updates Storage and requires no file in
       .click();
     await expect(page.locator(".imageManager figure")).toHaveCount(left);
     expect((await product()).product_images).toHaveLength(left);
-    expect(
-      (
-        await page.request.get(
-          url + "/storage/v1/object/public/product-images/" + path,
-        )
-      ).ok(),
-    ).toBe(false);
+    await absentFromStorage(path);
   }
   await page.getByRole("button", { name: "Saxla", exact: true }).click();
-  await expect(page.locator(".productEditor [role=status]")).toContainText(
+  await expect(page.locator(".productEditor:visible [role=status]")).toContainText(
     "Saxlanıldı",
   );
   await page.goto("/az/products/" + itemSlug);
@@ -544,6 +636,7 @@ test("six-column UI import creates brands, idempotent price update, transactiona
   fixtureBrands.add(first.brand_id);
   expect(first.status).toBe("published");
   expect(first.category_id).toBe("tablet");
+  const photograph=await page.request.post('/api/admin/image',{headers:{origin},multipart:{id:first.id,index:'0',alt:'QA import preservation',file:{name:'real.webp',mimeType:'image/webp',buffer:fs.readFileSync('public/catalog/49076729.webp')}}});expect(photograph.status()).toBe(201);const preservedPath=(await photograph.json()).image.path;
   await upload("123.45");
   await upload("234.56");
   rows = (await a.from("products").select("*").eq("name", importName)).data!;
@@ -597,6 +690,12 @@ test("six-column UI import creates brands, idempotent price update, transactiona
   expect(variant.status()).toBe(200);
   for (const x of (await variant.json()).items) fixtureIds.add(x.id);
   expect((await post([r, r])).status()).toBe(422);
+  const ambiguousName='QA ambiguous '+run;
+  const duplicates=await a.from('products').insert([0,1].map(n=>({name:ambiguousName,slug:prefix+'-ambiguous-'+n,brand_id:first.brand_id,category_id:'tablet',price:10,storage:'128 GB',color:'Qara',status:'draft'}))).select('id');expect(duplicates.error).toBeNull();for(const x of duplicates.data!)fixtureIds.add(x.id);
+  expect((await post([{...r,name:ambiguousName}])).status()).toBe(422);
+  expect((await post([{...r,name:ambiguousName,target_id:duplicates.data![0].id}])).status()).toBe(200);
+  expect((await a.from('products').select('price').eq('id',duplicates.data![1].id).single()).data?.price).toBe(10);
+  expect((await a.from('product_images').select('path').eq('product_id',first.id).single()).data?.path).toBe(preservedPath);
   const concurrent = await Promise.all([post([r]), post([r])]);
   expect(concurrent.map((r) => r.status())).toEqual([200, 200]);
   expect(
@@ -605,7 +704,7 @@ test("six-column UI import creates brands, idempotent price update, transactiona
   ).toHaveLength(1);
   for (const locale of ["az", "ru", "en"]) {
     await page.goto("/" + locale + "/products/" + first.slug);
-    await expect(page.locator("h1")).toHaveText(importName);
+    await expect(page.getByRole("heading",{level:1})).toHaveText(importName);
     await expect(
       page.getByText("Təsvir " + run, { exact: true }),
     ).toBeVisible();
@@ -734,91 +833,7 @@ test("trade-in actual counts, status, quote, admin password change and logout", 
   await expect(page).toHaveURL(/admin\/login/);
 });
 
-test("production seeded Xiaomi name/price edit and exact callback allowlist", async ({
-  page,
-}) => {
-  test.skip(!hosted);
-  await login(page);
-  const db = await auth();
-  const snapshot = await db
-    .from("products")
-    .select("*")
-    .eq("slug", "xiaomi-redmi-note-15-256-gb-black")
-    .single();
-  expect(snapshot.error).toBeNull();
-  const original = snapshot.data!;
-  try {
-    await page.goto("/admin/products?edit=" + original.slug);
-    await expect(page.locator(".productEditor:visible")).toHaveCount(1);
-    await page
-      .getByLabel("Ad və model", { exact: true })
-      .fill("redmi note test");
-    await page.getByRole("button", { name: "Saxla", exact: true }).click();
-    await expect(page.locator(".productEditor [role=status]")).toContainText(
-      "Saxlanıldı",
-    );
-    await page.reload();
-    await expect(page.getByLabel("Ad və model", { exact: true })).toHaveValue(
-      "redmi note test",
-    );
-    await page.goto("/az/products/" + original.slug);
-    await expect(page.locator("h1")).toHaveText("redmi note test");
-    const current = (
-      await db.from("products").select("*").eq("id", original.id).single()
-    ).data!;
-    const response = await page.request.post("/api/admin", {
-      headers: { origin },
-      data: {
-        op: "product",
-        id: original.id,
-        expected_updated_at: current.updated_at,
-        record: { ...current, price: Number(original.price) + 0.01 },
-      },
-    });
-    expect(response.status()).toBe(200);
-    expect(
-      (
-        await db
-          .from("products")
-          .select("price,slug,source_verified_at")
-          .eq("id", original.id)
-          .single()
-      ).data,
-    ).toMatchObject({
-      price: Number(original.price) + 0.01,
-      slug: original.slug,
-      source_verified_at: original.source_verified_at,
-    });
-  } finally {
-    // Restore only fields this test changed, preserving any concurrent unrelated owner edits.
-    expect(
-      (
-        await db
-          .from("products")
-          .update({ name: original.name, price: original.price })
-          .eq("id", original.id)
-      ).error,
-    ).toBeNull();
-  }
-  const restored = (
-    await db.from("products").select("*").eq("id", original.id).single()
-  ).data!;
-  expect(restored).toMatchObject({
-    ...original,
-    updated_at: expect.any(String),
-  });
-  const link = await sdk(secret).auth.admin.generateLink({
-    type: "recovery",
-    email,
-    options: { redirectTo: origin + "/auth/callback" },
-  });
-  expect(link.error).toBeNull();
-  const response = await fetch(link.data.properties!.action_link, {
-    redirect: "manual",
-  });
-  const destination = new URL(response.headers.get("location")!);
-  expect(destination.origin + destination.pathname).toBe(
-    origin + "/auth/callback",
-  );
-});
+
+
+
 

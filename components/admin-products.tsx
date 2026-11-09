@@ -1,4 +1,5 @@
 "use client";
+import {adminDate} from "@/lib/admin-date";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -221,9 +222,7 @@ export function ProductsPanel({
                 {data.categories.find((c) => c.slug === p.category_id)?.az}
               </p>
               <small>
-                {new Date(p.updated_at).toLocaleString("az-AZ", {
-                  timeZone: "Asia/Baku",
-                })}
+                {adminDate(p.updated_at)}
               </small>
             </div>
             <strong>{Number(p.price).toFixed(2)} ₼</strong>
@@ -966,3 +965,4 @@ function ProductEditor({
     </section>
   );
 }
+

@@ -1,4 +1,5 @@
 "use client";
+import {adminDate} from "@/lib/admin-date";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -502,9 +503,7 @@ export function AdminConsole({
                 · {r.notes}
               </p>
               <small>
-                {new Date(r.created_at).toLocaleString("az-AZ", {
-                  timeZone: "Asia/Baku",
-                })}
+                {adminDate(r.created_at)}
               </small>
               <select
                 aria-label="Status"
@@ -539,3 +538,4 @@ export function AdminConsole({
     </>
   );
 }
+
