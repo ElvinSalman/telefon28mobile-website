@@ -33,7 +33,7 @@ export function Home() {
   const { products, categories, offline } = useInventory();
   const [slide, setSlide] = useState(0);
   const featured = products.filter(p=>p.featured);
-  const slides = (featured.length ? featured : products).slice(0, 3);
+  const slides = (featured.some(p=>p.images?.length) ? featured : products).filter(p=>p.images?.length).slice(0, 3);
   const hero = slides[slide];
   return (
     <>
@@ -227,3 +227,4 @@ export function Home() {
     </>
   );
 }
+

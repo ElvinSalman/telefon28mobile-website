@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+test.beforeEach(async({page})=>{await page.route('**/api/events',r=>r.fulfill({status:204}));});
 for (const width of [320, 375, 390, 768, 1024, 1440, 1920])
   test("storefront layout " + width, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
@@ -50,3 +51,4 @@ test("localized 404 and guarded routes", async ({ request, page }) => {
     "/admin/login?error=link",
   );
 });
+

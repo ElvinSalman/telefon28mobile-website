@@ -9,6 +9,7 @@ try {
   if(url!=='https://bpsmcmmdtxteeswaumse.supabase.co')throw Error('Wrong project configuration');
   const input=JSON.parse(fs.readFileSync(0,'utf8').replace(/^\uFEFF/,''));
   if(typeof input.email!=='string'||!/^\S+@\S+\.\S+$/.test(input.email)||typeof input.password!=='string'||input.password.length<16||input.password.length>128)throw Error('Valid email and 16–128 character password required');
+  if(input.ownerConfirmed!==true)throw Error('Confirm email ownership directly before granting access.');
   const keys=JSON.parse(run('npx --yes supabase projects api-keys --project-ref bpsmcmmdtxteeswaumse -o json'));
   const secret=keys.find(k=>k.name==='service_role')?.api_key;
   if(!secret)throw Error('Authorized server credential unavailable');
@@ -26,3 +27,4 @@ try {
   } finally {if(fs.existsSync(file))fs.unlinkSync(file);}
   console.log('Administrator created and allowlisted. Open https://telefon28mobile-website.vercel.app/admin/login. No email was sent.');
 } catch(error){console.error(error instanceof Error?error.message:'Provisioning failed');process.exitCode=1;}
+

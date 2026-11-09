@@ -21,7 +21,6 @@ export const productInput = z.object({
   price: z.number().min(0).max(9999999999).multipleOf(0.01),
   featured: z.boolean().default(false),
   source_url: z.string().url().startsWith("https://").nullable().default(null),
-  source_verified_at: z.iso.datetime().nullable().default(null),
   storage: z.string().max(80).default(""),
   color: z.string().max(80).default(""),
   condition: z.enum(["new", "used", "refurbished"]).nullable().default(null),

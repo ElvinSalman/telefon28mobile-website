@@ -1,371 +1,101 @@
-import { execFileSync } from "node:child_process";
-import { test, expect } from "@playwright/test";
-import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
-import { Workbook } from "exceljs";
-import { parseSheet } from "../lib/importer";
-test.describe.configure({ mode: "serial" });
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
-const secret = process.env.SUPABASE_SECRET_KEY || "";
-const local = url === "http://127.0.0.1:55321" && !process.env.TEST_ORIGIN;
-const run = randomUUID().slice(0, 8);
-const item = "qa-" + run;
-const pass = randomUUID() + "Aa9!";
-const email = "owner-" + run + "@example.test";
-const user = "staff-" + run + "@example.test";
-let adminId = "",
-  userId = "";
-const sdk = (key: string) =>
-  createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-function sql(query: string) {
-  if (!local) throw Error("Local database required");
-  return execFileSync(
-    "docker",
-    [
-      "exec",
-      "supabase_db_telefon28mobile",
-      "psql",
-      "-U",
-      "postgres",
-      "-d",
-      "postgres",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-tA",
-      "-c",
-      query,
-    ],
-    { encoding: "utf8" },
-  ).trim();
+import {Workbook} from "exceljs";
+import {execFileSync,spawnSync} from 'node:child_process';
+import fs from 'node:fs';
+import {test,expect,type Page} from '@playwright/test';
+import {createClient} from '@supabase/supabase-js';
+import {randomUUID} from 'node:crypto';
+import {simpleColumns} from '../lib/simple-import';
+const url=process.env.NEXT_PUBLIC_SUPABASE_URL||'',pub=process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'',secret=process.env.SUPABASE_SECRET_KEY||'';
+const local=url==='http://127.0.0.1:55321'&&!process.env.TEST_ORIGIN;
+const hosted=process.env.REPAIR_HOSTED_QA==='approved'&&url==='https://bpsmcmmdtxteeswaumse.supabase.co';
+const enabled=local||hosted,origin=process.env.TEST_ORIGIN||'http://127.0.0.1:3028';
+const run=randomUUID().slice(0,8),prefix='qa-repair-'+run,email=prefix+'@example.test',password=randomUUID()+'Aa9!';
+const sdk=(key:string)=>createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
+let uid='',ordinaryId='',itemId='',itemSlug='',brandSlug='';
+const fixtureIds=new Set<string>(),fixtureBrands=new Set<string>();
+function sql(query:string){
+ if(local)return JSON.parse(execFileSync('docker',['exec','supabase_db_telefon28mobile','psql','-U','postgres','-d','postgres','-v','ON_ERROR_STOP=1','-tA','-c',query],{encoding:'utf8'}).trim()||'null');
+ if(!hosted)throw Error('Explicit QA authorization required');
+ const file='.vercel/repair-qa.sql';fs.writeFileSync(file,query);
+ try{const r=spawnSync('cmd.exe',['/d','/s','/c','npx --yes supabase db query --linked --file '+file+' -o json'],{encoding:'utf8',windowsHide:true});if(r.status)throw Error('QA SQL failed');const rows=JSON.parse(r.stdout).rows;return rows[0]?.result??null;}finally{fs.unlinkSync(file);}
 }
-test.beforeAll(async () => {
-  if (!local) return;
-  sql("delete from shop_private.throttles where expires<now()");
-  const service = sdk(secret);
-  for (const [mail, admin] of [
-    [email, true],
-    [user, false],
-  ] as const) {
-    const r = await service.auth.admin.createUser({
-      email: mail,
-      password: pass,
-      email_confirm: true,
-    });
-    expect(r.error).toBeNull();
-    if (admin) {
-      adminId = r.data.user!.id;
-      if (!/^[a-f0-9-]{36}$/.test(adminId)) throw Error("Invalid UUID");
-      sql(
-        "insert into public.admin_memberships(user_id) values ('" +
-          adminId +
-          "')",
-      );
-    } else userId = r.data.user!.id;
-  }
+function command(query:string){return sql('with changed as ('+query+' returning 1) select count(*) as result from changed');}
+async function login(page:Page){await page.goto('/admin/login');await page.getByLabel('E-poçt',{exact:true}).first().fill(email);await page.getByLabel('Şifrə',{exact:true}).fill(password);await page.getByRole('button',{name:'Daxil ol'}).click();await expect(page).toHaveURL(/\/admin$/);}
+async function auth(){const c=sdk(pub);expect((await c.auth.signInWithPassword({email,password})).error).toBeNull();return c;}
+async function product(){const r=await (await auth()).from('products').select('*,product_images(*)').eq('id',itemId).single();expect(r.error).toBeNull();return r.data!;}
+test.describe.configure({mode:'serial',timeout:120000});
+ test.beforeEach(async({page})=>{await page.route('**/api/events',r=>r.fulfill({status:204}));});
+test.beforeAll(async()=>{if(!enabled)return;const service=sdk(secret);for(const admin of [true,false]){const r=await service.auth.admin.createUser({email:admin?email:'ordinary-'+email,password,email_confirm:true});expect(r.error).toBeNull();if(admin){uid=r.data.user!.id;command(`insert into public.admin_memberships(user_id) values('${uid}')`);}else ordinaryId=r.data.user!.id;}});
+test.afterAll(async()=>{if(!enabled)return;const service=sdk(secret);const admin=await auth();const rows=await admin.from('products').select('id,slug,brand_id,product_images(path)').like('name','%'+run+'%');for(const p of rows.data||[]){fixtureIds.add(p.id);command("delete from public.daily_stats where subject='"+p.slug+"'" );if(p.brand_id.includes(run))fixtureBrands.add(p.brand_id);const paths=p.product_images.map(x=>x.path);if(paths.length)await service.storage.from('product-images').remove(paths);}
+ for(const id of fixtureIds){command(`delete from public.product_images where product_id='${id}'`);command(`delete from public.products where id='${id}'`);}
+ for(const b of fixtureBrands)command(`delete from public.brands where slug='${b}' and not exists(select 1 from public.products where brand_id='${b}')`);
+ const removed=command(`delete from public.trade_in_requests where name='${prefix}'`);if(removed)command(`update public.daily_stats set count=greatest(0,count-${removed}) where event='trade_in' and subject='' and day=(now() at time zone 'Asia/Baku')::date`);
+ // Only exact fixture subjects, never delete historical aggregate events.
+ command(`delete from public.daily_stats where subject like '${prefix}%'`);
+ for(const id of [uid,ordinaryId])if(id)expect((await service.auth.admin.deleteUser(id)).error).toBeNull();
 });
-test.afterAll(async () => {
-  if (!local) return;
-  const db = sdk(secret);
-  for (const id of [adminId, userId])
-    if (id) await db.auth.admin.deleteUser(id);
-  const paths = sql(
-    "select path from public.product_images where product_id=(select id from public.products where slug='" +
-      item +
-      "')",
-  )
-    .split("\n")
-    .filter(Boolean);
-  if (paths.length) await db.storage.from("product-images").remove(paths);
-  sql(
-    "delete from public.products where slug='" +
-      item +
-      "-extra';delete from public.product_images where product_id=(select id from public.products where slug='" +
-      item +
-      "'); delete from public.products where slug='" +
-      item +
-      "'; delete from public.brands where slug='" +
-      item +
-      "'; delete from public.trade_in_requests where name='QA " +
-      run +
-      "'",
-  );
+test('RLS, allowlist, API and Storage reject anonymous and ordinary users',async({page,request})=>{test.skip(!enabled);await page.goto('/admin');await expect(page).toHaveURL(/admin\/login/);const denied=await request.post('/api/admin',{headers:{origin},data:{op:'archive',slug:'none'}});expect(denied.status()).toBe(403);expect(await denied.json()).toMatchObject({code:'FORBIDDEN',requestId:expect.any(String)});
+ const ordinary=sdk(pub);await ordinary.auth.signInWithPassword({email:'ordinary-'+email,password});for(const c of [sdk(pub),ordinary]){expect((await c.from('brands').insert({name:prefix,slug:prefix})).error).toBeTruthy();expect((await c.rpc('shop_resolve_brand',{brand_name:prefix,preferred_slug:prefix})).error).toBeTruthy();expect((await c.rpc('shop_import_products',{items:[]})).error).toBeTruthy();expect((await c.storage.from('product-images').upload(prefix+'/test.webp',new Uint8Array([1]),{contentType:'image/webp'})).error).toBeTruthy();expect((await c.from('trade_in_requests').select('id')).data||[]).toHaveLength(0);expect((await c.from('admin_memberships').insert({user_id:ordinaryId})).error).toBeTruthy();}
 });
-test("anonymous, ordinary and administrator RLS/storage", async () => {
-  test.skip(!local);
-  const anon = sdk(pub),
-    ordinary = sdk(pub),
-    admin = sdk(pub);
-  expect((await ordinary.auth.signInWithPassword({ email: user, password: pass })).error).toBeNull();
-  expect((await admin.auth.signInWithPassword({ email, password: pass })).error).toBeNull();
-  for (const c of [anon, ordinary]) {
-    expect(
-      (await c.from("brands").insert({ slug: item, name: item }).select())
-        .error,
-    ).toBeTruthy();
-    expect(
-      (
-        await c.storage
-          .from("product-images")
-          .upload(item + "/test.webp", new Uint8Array([1]), {
-            contentType: "image/webp",
-          })
-      ).error,
-    ).toBeTruthy();
-    expect(
-      (await c.rpc("shop_count", { kind: "session", item: "" })).error,
-    ).toBeTruthy();
-    expect(
-      (await c.from("trade_in_requests").select("*")).data || [],
-    ).toHaveLength(0);
-    expect(
-      (await c.from("admin_memberships").insert({ user_id: userId })).error,
-    ).toBeTruthy();
-  }
-  const role = await admin.rpc("shop_admin"); expect(role.error).toBeNull(); expect(role.data).toBe(true);
-  expect(
-    (await admin.from("brands").insert({ name: item, slug: item })).error,
-  ).toBeNull();
-  expect(
-    (
-      await admin.from("products").insert({
-        slug: item,
-        name: "QA Phone",
-        price: 230,
-        brand_id: item,
-        category_id: "phone",
-      })
-    ).error,
-  ).toBeNull();
-  expect(
-    (await anon.from("products").select("slug").eq("slug", item)).data,
-  ).toEqual([]);
+test('one-step creation, new inline brand, two photos, reorder, responsive editor',async({page})=>{test.skip(!enabled);await login(page);await page.goto('/admin/products?new=1');await expect(page.locator('.productEditor:visible')).toHaveCount(1);await page.getByLabel('Ad və model',{exact:true}).fill('iPhone QA '+run);await page.locator('input[name=price]').fill('123.45');await page.locator('input[name=brand]').fill('QA Brand '+run);await page.locator('input[name=category_id]').fill('phone');await page.locator('textarea[name=desc_az]').fill('QA təsvir '+run);await page.locator('select[name=status]').selectOption('published');await page.getByLabel('Fotoları seç').setInputFiles(['public/catalog/49076729.webp','public/catalog/49041247.webp']);await expect(page.locator('.pendingPhotos figure')).toHaveCount(2);await page.locator('.pendingPhotos figure').nth(1).getByRole('button',{name:'Əvvələ'}).click();
+ await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor [role=status]')).toContainText('Saxlanıldı',{timeout:60000});itemSlug=await page.locator('input[name=slug]').inputValue();const a=await auth();const r=await a.from('products').select('id,brand_id,status,product_images(*)').eq('slug',itemSlug).single();expect(r.error).toBeNull();itemId=r.data!.id;brandSlug=r.data!.brand_id;fixtureIds.add(itemId);fixtureBrands.add(brandSlug);expect(r.data!.status).toBe('published');expect(r.data!.product_images).toHaveLength(2);await expect(page.locator('input[name=slug]')).toHaveAttribute('readonly','');
+ for(const width of [390,768,1440]){await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
+ for(const locale of ['az','ru','en']){await page.goto('/'+locale+'/products/'+itemSlug);await expect(page.locator('h1')).toHaveText('iPhone QA '+run);await expect(page.getByText('QA təsvir '+run,{exact:true})).toBeVisible();}
 });
-test("import preview validates CSV and XLSX and rejects duplicate slugs", async () => {
-  const headers = "slug,name,brand_id,category_id,price,storage,color,status";
-  const entry =
-    item + ",QA Phone," + item + ",phone,230,128 GB,Black,published";
-  const csv = new File([headers + "\n" + entry], "catalog.csv");
-  const row = await parseSheet(csv);
-  expect(row[0].price).toBe(230);
-  await expect(
-    parseSheet(
-      new File([headers + "\n" + entry + "\n" + entry], "duplicate.csv"),
-    ),
-  ).rejects.toThrow();
-  const book = new Workbook();
-  const s = book.addWorksheet();
-  s.addRow(headers.split(","));
-  s.addRow(entry.split(","));
-  expect(
-    await parseSheet(
-      new File([new Uint8Array(await book.xlsx.writeBuffer())], "catalog.xlsx"),
-    ),
-  ).toEqual(row);
+test('existing ID edits every field, timestamp regression, concurrency and safe errors',async({page})=>{test.skip(!enabled);await login(page);const post=(data:unknown)=>page.request.post('/api/admin',{headers:{origin},data});
+ const other=await post({op:'brand',name:'QA Alternate '+run});expect(other.ok()).toBe(true);const otherBrand=(await other.json()).slug;fixtureBrands.add(otherBrand);let p=await product();const immutable=p.slug;for(const change of [{name:'iPhone edited '+run},{price:245.99},{brand_id:otherBrand},{brand_id:brandSlug},{category_id:'tablet'},{category_id:'phone'},{storage:'256 GB',color:'Ağ'},{description:{az:'Yeniləndi '+run,ru:'QA RU',en:'QA EN'}},{featured:true},{status:'draft'},{status:'published'},{}]){const result=await post({op:'product',id:itemId,expected_updated_at:p.updated_at,record:{...p,...change,source_verified_at:'2026-11-01T00:00:00+00:00'}});expect(result.status(),await result.text()).toBe(200);expect((await result.json()).affected).toBe(1);p=await product();expect(p).toMatchObject(change);expect(p.slug).toBe(immutable);}
+ for(const [payload,status,code] of [[{op:'product',id:randomUUID(),record:p},404,'NOT_FOUND'],[{op:'product',id:itemId,record:{...p,price:-1}},422,'VALIDATION'],[{op:'product',id:itemId,record:{...p,source_url:'javascript:test'}},422,'VALIDATION'],[{op:'product',id:itemId,record:{...p,slug:'new-slug'}},422,'STABLE_SLUG'],[{op:'product',id:itemId,expected_updated_at:'2000-01-01T00:00:00Z',record:p},409,'CONFLICT'],[{op:'product',id:itemId,record:{...p,brand_id:'missing-brand-qa'}},422,'REFERENCE'],[{op:'product',record:p},409,'DUPLICATE']] as const){const r=await post(payload);expect(r.status()).toBe(status);expect(await r.json()).toMatchObject({code,requestId:expect.any(String)});}
+ expect((await page.request.post('/api/admin',{headers:{origin:'https://wrong.example'},data:{op:'archive',slug:itemSlug}})).status()).toBe(403);
+ await page.goto('/admin/products?edit='+itemSlug);await expect(page.getByLabel('Ad və model',{exact:true})).toHaveValue(p.name);await page.locator('input[name=price]').fill('-2');await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor .adminError')).toBeVisible();await expect(page.locator('input[name=price]')).toHaveValue('-2');
+ // Simulated transport interruption must keep unsaved content.
+ await page.locator('input[name=price]').fill('246');await page.route('**/api/admin',r=>r.abort());await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor .adminError')).toBeVisible();await expect(page.locator('input[name=price]')).toHaveValue('246');await page.unroute('**/api/admin');await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor [role=status]')).toContainText('Saxlanıldı');expect((await product()).price).toBe(246);
 });
-test("protected UI, publish/import, real uploaded image, cart quote, trade-in and counters", async ({
-  page,
-  request,
-}) => {
-  test.skip(!local);
-  await page.goto("/admin");
-  await expect(page).toHaveURL(/admin\/login/);
-  expect(
-    (
-      await request.post("/api/admin", { data: { op: "archive", slug: item } })
-    ).status(),
-  ).toBe(403);
-  await page.getByLabel("E-poçt", { exact: true }).first().fill(email);
-  await page.getByLabel("Şifrə", { exact: true }).fill(pass);
-  await page.getByRole("button", { name: "Daxil ol" }).click();
-  await expect(page).toHaveURL(/\/admin$/);
-  await page.goto("/admin/products");
-  await page.getByRole("button", { name: "Yeni məhsul" }).click();
-  await page.getByLabel("Ad və model").fill("QA second model");
-  await page.locator("input[name=slug]").fill(item + "-extra");
-  await page.locator("select[name=brand_id]").selectOption(item);
-  await page.locator("select[name=category_id]").selectOption("phone");
-  await page.locator("input[name=price]").fill("234.99");
-  await page.getByRole("button", { name: "Saxla", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Saxlanıldı");
-  await expect(page.locator("input[name=slug]")).toHaveAttribute(
-    "readonly",
-    "",
-  );
-  await page.locator("input[name=price]").fill("245.99");
-  const edited = page.waitForResponse((r) => r.url().endsWith("/api/admin"));
-  await page
-    .locator("form")
-    .filter({ has: page.locator("input[name=price]") })
-    .getByRole("button", { name: "Saxla" })
-    .click();
-  expect((await edited).status()).toBe(204);
-  await page.goto("/admin/import");
-  await page.locator("input[type=file]").setInputFiles({
-    name: "catalog.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      "slug,name,brand_id,category_id,price,storage,color,status\n" +
-        item +
-        ",QA Phone," +
-        item +
-        ",phone,230,128 GB,Black,published",
-    ),
-  });
-  await expect(page.getByText("Önbaxışı yoxlayın.")).toBeVisible();
-  page.once("dialog", (d) => d.accept());
-  const importing = page.waitForResponse(
-    (r) => r.url().endsWith("/api/admin") && r.request().method() === "POST",
-  );
-  await page.getByText("İdxalı təsdiqlə").click();
-  expect((await importing).status()).toBe(204);
-  await expect(page.getByRole("status")).toContainText("Saxlanıldı");
-  await page.goto("/admin/products");
-  await page.getByRole("textbox", { name: "Axtar", exact: true }).fill(item);
-  await page
-    .locator("article")
-    .filter({ hasText: "QA Phone" })
-    .getByRole("button", { name: "Redaktə", exact: true })
-    .click();
-  await page.locator("input[type=file]").setInputFiles({
-    name: "sample.png",
-    mimeType: "image/png",
-    buffer: await (
-      await import("sharp")
-    )
-      .default({
-        create: { width: 8, height: 8, channels: 3, background: "#456" },
-      })
-      .png()
-      .toBuffer(),
-  });
-  const upload = page.waitForResponse((r) =>
-    r.url().includes("/api/admin/image"),
-  );
-  await page
-    .locator("form")
-    .filter({ has: page.locator("input[type=file]") })
-    .getByRole("button", { name: "Saxla" })
-    .click();
-  expect((await upload).status()).toBe(201);
-  await page.goto("/en/products/" + item);
-  await expect(page.locator("h1")).toHaveText("QA Phone");
-  await page.getByRole("button", { name: "Add to cart" }).first().click();
-  await page.goto("/en/cart");
-  await page.getByRole("button", { name: "Increase" }).click();
-  await page.getByRole("link", { name: "Order inquiry" }).click();
-  await page.route("https://wa.me/**", (r) =>
-    r.fulfill({ body: "Local QA intercept" }),
-  );
-  await page.getByRole("button", { name: "Ask on WhatsApp" }).click();
-  await expect(page).toHaveURL(/wa.me/);
-  expect(decodeURIComponent(page.url())).toContain("460.00");
-  expect(decodeURIComponent(page.url())).toContain("/en/products/" + item);
-  const origin = "http://127.0.0.1:3028";
-  const post = (path: string, data: unknown) =>
-    request.post(path, { headers: { origin }, data });
-  expect(
-    (
-      await post("/api/quote", {
-        locale: "az",
-        lines: [{ slug: item, price: 1, qty: 1 }],
-      })
-    ).status(),
-  ).toBe(409);
-  await page.goto("/en/trade-in");
-  await page.getByLabel("Full name").fill("QA " + run);
-  await page.getByLabel("Phone", { exact: true }).fill("+994000000000");
-  await page.getByLabel("Brand and model").fill("QA device");
-  await page.getByLabel("Storage").fill("128GB");
-  await page.getByRole("checkbox").check();
-  await page.getByRole("button", { name: "Submit request" }).click();
-  await expect(page.getByText("Request received.")).toBeVisible();
-  const service = sdk(pub);
-  await service.auth.signInWithPassword({ email, password: pass });
-  expect(
-    (
-      await service
-        .from("trade_in_requests")
-        .select("consent_at")
-        .eq("name", "QA " + run)
-        .single()
-    ).data?.consent_at,
-  ).toBeTruthy();
-  for (const k of ["session", "page_view", "product_view", "whatsapp_click", "trade_in"])
-    expect(
-      (
-        await service
-          .from("daily_stats")
-          .select("count")
-          .eq("event", k)
-          .limit(1)
-      ).data?.length,
-    ).toBe(1);
-  await page.goto("/admin/products");
-  await page.getByRole("textbox", { name: "Axtar", exact: true }).fill(item);
-  page.once("dialog", (d) => d.accept());
-  await page
-    .locator("article")
-    .filter({ hasText: "QA Phone" })
-    .getByRole("button", { name: "Arxivlə" })
-    .click();
-  await expect(page.getByRole("status")).toContainText("Saxlanıldı");
-  expect((await request.get("/en/products/" + item)).status()).toBe(404);
-  await page.getByRole("button", { name: "Çıxış" }).click();
-  await expect(page).toHaveURL(/admin\/login/);
+test('photo primary/replacement/deletion updates Storage and requires no file input',async({page})=>{test.skip(!enabled);await login(page);await page.goto('/admin/products?edit='+itemSlug);let p=await product();const old=p.product_images.find((x:{sort_order:number})=>x.sort_order===1).path;
+ await page.locator('.imageManager figure').nth(1).getByRole('button',{name:'Əsas şəkil et'}).click();await expect.poll(async()=>(await product()).product_images.find((x:{sort_order:number})=>x.sort_order===0).path).toBe(old);
+ await page.locator('.imageManager figure').first().getByLabel('Əvəz et').setInputFiles('public/catalog/49076729.webp');await page.getByRole('button',{name:'Foto əlavə et',exact:true}).click();await expect(page.locator('.productEditor [role=status]')).toContainText('Fotolar əlavə edildi');expect((await page.request.get(url+'/storage/v1/object/public/product-images/'+old)).ok()).toBe(false);
+ for(const left of [1,0]){p=await product();const path=p.product_images.sort((a:{sort_order:number},b:{sort_order:number})=>a.sort_order-b.sort_order)[0].path;page.once('dialog',d=>d.accept());await page.locator('.imageManager figure').first().getByRole('button',{name:'Fotonu sil'}).click();await expect(page.locator('.imageManager figure')).toHaveCount(left);expect((await product()).product_images).toHaveLength(left);expect((await page.request.get(url+'/storage/v1/object/public/product-images/'+path)).ok()).toBe(false);}
+ await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor [role=status]')).toContainText('Saxlanıldı');await page.goto('/az/products/'+itemSlug);await expect(page.getByText('Foto əlavə edilməyib',{exact:true}).first()).toBeVisible();
 });
-test("admin gallery reorder and removal preserve remaining photos", async ({page}) => {
-  test.skip(!local);
-  await page.goto("/admin/login");
-  await page.getByLabel("E-poçt",{exact:true}).first().fill(email);
-  await page.getByLabel("Şifrə",{exact:true}).fill(pass);
-  await page.getByRole("button",{name:"Daxil ol"}).click();
-  await expect(page).toHaveURL(/\/admin$/);
-  const id=sql("select id from public.products where slug='"+item+"'");
-  const origin="http://127.0.0.1:3028";
-  const bytes=await (await import("sharp")).default({create:{width:8,height:8,channels:3,background:"#a57"}}).png().toBuffer();
-  expect((await page.request.post("/api/admin/image",{headers:{origin},multipart:{id,index:"1",alt:"Second test photo",file:{name:"two.png",mimeType:"image/png",buffer:bytes}}})).status()).toBe(201);
-  const old=sql("select path from public.product_images where product_id='"+id+"' and sort_order=1");
-  expect((await page.request.post("/api/admin",{headers:{origin},data:{op:"image-move",product:id,from:1,to:0}})).status()).toBe(204);
-  expect(sql("select path from public.product_images where product_id='"+id+"' and sort_order=0")).toBe(old);
-  expect((await page.request.post("/api/admin",{headers:{origin},data:{op:"image-delete",product:id,index:0}})).status()).toBe(204);
-  expect(sql("select count(*) from public.product_images where product_id='"+id+"'")).toBe("1");
-  expect((await page.request.get(url+"/storage/v1/object/public/product-images/"+old)).ok()).toBe(false);
+test('six-column UI import creates brands, idempotent price update, transactional rollback',async({page})=>{test.skip(!enabled);await login(page);const a=await auth();const importName='iPad QA '+run;const brand='QA Imported '+run;const upload=async(price:string,excel=false)=>{await page.goto('/admin/import');let buffer=Buffer.from(simpleColumns.join(',')+'\n'+[importName,price,brand,'128 GB','Qara','Təsvir '+run].join(','));
+ if(excel){const csv=await page.request.get('/import-template.csv');expect((await csv.text()).replace(/^\uFEFF/,'').trim()).toBe(simpleColumns.join(','));const downloading=page.waitForEvent('download');await page.getByRole('button',{name:'Excel şablonu ↓'}).click();const downloaded=await downloading;const stream=await downloaded.createReadStream();const chunks=[];for await(const chunk of stream!)chunks.push(chunk);const book=new Workbook();await book.xlsx.load(new Uint8Array(Buffer.concat(chunks)).buffer);expect(Array.from({length:6},(_,i)=>book.worksheets[0].getRow(1).getCell(i+1).text)).toEqual([...simpleColumns]);expect(book.worksheets).toHaveLength(2);book.worksheets[0].addRow([importName,price,brand,'128 GB','Qara','Təsvir '+run]);buffer=Buffer.from(await book.xlsx.writeBuffer());}
+ await page.getByLabel('İdxal faylı').setInputFiles({name:excel?'six.xlsx':'six.csv',mimeType:excel?'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'text/csv',buffer});await expect(page.locator('.importPreview fieldset')).toHaveCount(1);await page.getByRole('checkbox').check();await page.getByRole('button',{name:'İdxalı təsdiqlə'}).click();await expect(page.getByRole('status').filter({hasText:'uğurlu'})).toBeVisible();};
+ await upload('123.45',true);let rows=(await a.from('products').select('*').eq('name',importName)).data!;expect(rows).toHaveLength(1);const first=rows[0];fixtureIds.add(first.id);fixtureBrands.add(first.brand_id);expect(first.status).toBe('published');expect(first.category_id).toBe('tablet');await upload('123.45');await upload('234.56');rows=(await a.from('products').select('*').eq('name',importName)).data!;expect(rows).toHaveLength(1);expect(rows[0]).toMatchObject({id:first.id,slug:first.slug,price:234.56});
+ const post=(rows:unknown[])=>page.request.post('/api/admin',{headers:{origin},data:{op:'import',rows}});const r={row:2,name:importName,brand,price:345.67,storage:'128 GB',color:'Qara',description:'',category:'tablet'};
+ expect((await post([r])).status()).toBe(200);expect((await a.from('products').select('description').eq('id',first.id).single()).data?.description.az).toBe('Təsvir '+run);
+ const rollbackBrand='QA Rollback '+run;const failure=await post([{...r,name:'QA rollback '+run,brand:rollbackBrand},{...r,row:3,name:'QA invalid '+run,category:'missing-qa'}]);expect(failure.status()).toBe(422);expect((await a.from('brands').select('slug').eq('name',rollbackBrand)).data).toHaveLength(0);expect((await a.from('products').select('id').eq('name','QA rollback '+run)).data).toHaveLength(0);
+ const variant=await post([{...r,storage:'256 GB'},{...r,row:3,name:'MacBook QA '+run,category:'laptop'}]);expect(variant.status()).toBe(200);for(const x of (await variant.json()).items)fixtureIds.add(x.id);
+  expect((await post([r,r])).status()).toBe(422);
+ const concurrent=await Promise.all([post([r]),post([r])]);expect(concurrent.map(r=>r.status())).toEqual([200,200]);expect((await a.from('products').select('id').eq('import_key',first.import_key)).data).toHaveLength(1);
+ for(const locale of ['az','ru','en']){await page.goto('/'+locale+'/products/'+first.slug);await expect(page.locator('h1')).toHaveText(importName);await expect(page.getByText('Təsvir '+run,{exact:true})).toBeVisible();}
 });
-test("invite and recovery callback consume single-use tokens", async ({
-  page,
-}) => {
-  test.skip(!local);
-  const db = sdk(secret);
-  const invite = await db.auth.admin.generateLink({
-    type: "invite",
-    email: "invite-" + run + "@example.test",
-  });
-  expect(invite.error).toBeNull();
-  try {
-    await page.goto(
-      "/auth/callback?type=invite&token_hash=" +
-        invite.data.properties!.hashed_token,
-    );
-    await expect(page).toHaveURL(/admin\/login/);
-    const recovery = await db.auth.admin.generateLink({
-      type: "recovery",
-      email,
-    });
-    await page.goto(
-      "/auth/callback?type=recovery&token_hash=" +
-        recovery.data.properties!.hashed_token,
-    );
-    await expect(page).toHaveURL(/admin\/password/);
-    await page.getByLabel("Cari şifrə", {exact:true}).fill(pass);
-    await page.getByLabel("Yeni şifrə · minimum 12 simvol", {exact:true}).fill(pass+"x");
-    await page.getByLabel("Yeni şifrəni təkrar edin", {exact:true}).fill(pass+"x");
-    await page.getByRole("button", {name:"Saxla",exact:true}).click();
-    await expect(page).toHaveURL(/\/admin$/);
-    expect((await sdk(pub).auth.signInWithPassword({email,password:pass+"x"})).error).toBeNull();
-  } finally {
-    await db.auth.admin.deleteUser(invite.data.user!.id);
-  }
+test('trade-in actual counts, status, quote, admin password change and logout',async({page})=>{test.skip(!enabled);await login(page);const a=await auth();const before=(await a.from('trade_in_requests').select('id',{head:true,count:'exact'})).count!;
+ const trade=await page.request.post('/api/trade-in',{headers:{origin},data:{name:prefix,phone:'+994000000000',model:'QA device',storage:'128 GB',condition:'good',notes:'Disposable QA',consent:true,website:''}});expect(trade.ok()).toBe(true);const request=(await a.from('trade_in_requests').select('id').eq('name',prefix).single()).data!;
+ expect((await a.from('trade_in_requests').select('id',{head:true,count:'exact'})).count).toBe(before+1);
+ for(const days of [1,7,30,90]){await page.goto('/admin/trade-in?days='+days);await expect(page.getByText(prefix,{exact:false}).first()).toBeVisible();const count=await page.locator('[data-testid=request-count]').textContent();await page.goto('/admin/?days='+days);await expect(page.locator('[data-testid=request-count]')).toHaveText(count!);}
+ expect((await page.request.post('/api/admin',{headers:{origin},data:{op:'trade',id:request.id,status:'contacted'}})).status()).toBe(200);await page.goto('/admin/trade-in?request_status=contacted');await expect(page.getByText(prefix,{exact:false}).first()).toBeVisible();
+ for(const kind of ['session','page_view','product_view','whatsapp_click']){const event=await page.request.post('/api/events',{headers:{origin},data:{kind,item:itemSlug}});expect(event.status()).toBe(204);expect((await a.from('daily_stats').select('count').eq('subject',itemSlug).eq('event',kind)).data?.some(x=>Number(x.count)>0)).toBe(true);}
+ const p=await product();const quote=await page.request.post('/api/quote',{headers:{origin},data:{locale:'en',lines:[{slug:itemSlug,qty:2,price:p.price}]}});expect(quote.ok()).toBe(true);const target=(await quote.json()).url;expect(target).toContain('https://wa.me/994556002001?text=');expect(decodeURIComponent(target)).toContain((p.price*2).toFixed(2));expect(decodeURIComponent(target)).toContain(p.name);expect((await page.request.post('/api/quote',{headers:{origin},data:{locale:'en',lines:[{slug:itemSlug,qty:1,price:1}]}})).status()).toBe(409);
+ await page.goto('/admin/password');await page.getByLabel('Cari şifrə',{exact:true}).fill(password);await page.getByLabel('Yeni şifrə · minimum 12 simvol',{exact:true}).fill(password+'x');await page.getByLabel('Yeni şifrəni təkrar edin',{exact:true}).fill(password+'x');await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page).toHaveURL(/\/admin$/);expect((await sdk(pub).auth.signInWithPassword({email,password:password+'x'})).error).toBeNull();
+ // Restore only this disposable QA password for fixture cleanup, never the owner's account.
+ expect((await sdk(secret).auth.admin.updateUserById(uid,{password})).error).toBeNull();await page.getByRole('button',{name:'Çıxış'}).click();await expect(page).toHaveURL(/admin\/login/);
 });
+
+
+
+
+test('production seeded Xiaomi name/price edit and exact callback allowlist',async({page})=>{
+ test.skip(!hosted);await login(page);const db=await auth();const snapshot=await db.from('products').select('*').eq('slug','xiaomi-redmi-note-15-256-gb-black').single();expect(snapshot.error).toBeNull();const original=snapshot.data!;
+ try{
+  await page.goto('/admin/products?edit='+original.slug);await expect(page.locator('.productEditor:visible')).toHaveCount(1);await page.getByLabel('Ad və model',{exact:true}).fill('redmi note test');await page.getByRole('button',{name:'Saxla',exact:true}).click();await expect(page.locator('.productEditor [role=status]')).toContainText('Saxlanıldı');await page.reload();await expect(page.getByLabel('Ad və model',{exact:true})).toHaveValue('redmi note test');await page.goto('/az/products/'+original.slug);await expect(page.locator('h1')).toHaveText('redmi note test');
+  const current=(await db.from('products').select('*').eq('id',original.id).single()).data!;const response=await page.request.post('/api/admin',{headers:{origin},data:{op:'product',id:original.id,expected_updated_at:current.updated_at,record:{...current,price:Number(original.price)+.01}}});expect(response.status()).toBe(200);expect((await db.from('products').select('price,slug,source_verified_at').eq('id',original.id).single()).data).toMatchObject({price:Number(original.price)+.01,slug:original.slug,source_verified_at:original.source_verified_at});
+ }finally{
+  // Restore only fields this test changed, preserving any concurrent unrelated owner edits.
+  expect((await db.from('products').update({name:original.name,price:original.price}).eq('id',original.id)).error).toBeNull();
+ }
+ const restored=(await db.from('products').select('*').eq('id',original.id).single()).data!;expect(restored).toMatchObject({...original,updated_at:expect.any(String)});
+ const link=await sdk(secret).auth.admin.generateLink({type:'recovery',email,options:{redirectTo:origin+'/auth/callback'}});expect(link.error).toBeNull();const response=await fetch(link.data.properties!.action_link,{redirect:'manual'});const destination=new URL(response.headers.get('location')!);expect(destination.origin+destination.pathname).toBe(origin+'/auth/callback');
+});
+
+
+
+

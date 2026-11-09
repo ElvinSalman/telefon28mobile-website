@@ -2,10 +2,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { columns, parseSheet } from "@/lib/importer";
+import {ProductsPanel} from "./admin-products";
+import {SimpleImportPanel} from "./admin-import";
+import {adminRequest} from "@/lib/admin-client";
 import { slugify } from "@/lib/validation";
-type Row = {
+export type Row = {
   id: string;
   slug: string;
   name: string;
@@ -23,6 +24,7 @@ type Row = {
   featured: boolean;
   source_url: string | null;
   source_verified_at: string | null;
+  import_key?:string|null;
 };
 type Cat = {
   slug: string;
@@ -42,8 +44,9 @@ type Store = {
   sort_order: number;
   active: boolean;
 };
-type Data = {
+export type Data = {
   products: Row[];
+  requestCount:number;days:number;requestStatus:string;
   categories: Cat[];
   brands: { slug: string; name: string }[];
   stores: Store[];
@@ -96,52 +99,12 @@ function Field({
     </label>
   );
 }
-export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; data: Data;newProduct?:boolean }) {
+export function AdminConsole({ tab, data: d,newProduct=false,editSlug }: { tab: string; data: Data;newProduct?:boolean;editSlug?:string }) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  const [page, setPage] = useState(1);
-  const [filter, setFilter] = useState("");
-  const [statusFilter,setStatusFilter]=useState("");
-  const [sort, setSort] = useState("updated");
-  const [selected, select] = useState<string | null>(newProduct ? "" : null);
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
-  const [preview, setPreview] = useState("");
-  const edit = d.products.find((p) => p.slug === selected);
-  const path = (r: Row) => {
-    const im = r.product_images
-      ?.slice()
-      .sort((a, b) => a.sort_order - b.sort_order)[0];
-    return im
-      ? process.env.NEXT_PUBLIC_SUPABASE_URL +
-          "/storage/v1/object/public/product-images/" +
-          im.path
-      : "/art/other.svg";
-  };
-  async function save(value: unknown, upload = false) {
-    setBusy(true);
-    try {
-      const r = await fetch(upload ? "/api/admin/image" : "/api/admin", {
-        method: "POST",
-        headers: upload ? {} : { "Content-Type": "application/json" },
-        body: upload ? (value as FormData) : JSON.stringify(value),
-      });
-      if (!r.ok)
-        throw Error(
-          r.status === 403
-            ? "Sessiya və ya icazə yoxdur."
-            : "Saxlanmadı. Məlumatları yoxlayın.",
-        );
-      setNotice("Saxlanıldı.");
-      router.refresh();
-      return true;
-    } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Xəta");
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
+
+  async function save(value:unknown){setBusy(true);try{await adminRequest(value);setNotice("Saxlanıldı.");router.refresh();return true;}catch(e){setNotice(e instanceof Error?e.message:"Əməliyyat tamamlanmadı.");return false;}finally{setBusy(false)}}
   const wrap =
     (action: (f: FormData) => void) =>
     (e: React.FormEvent<HTMLFormElement>) => {
@@ -175,19 +138,6 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
     };
   });
   const scale = Math.max(1, ...daily.map((r) => Math.max(r.views, r.clicks)));
-  const sorted = d.products
-    .filter((p) =>
-      (p.name + " " + p.slug + " " + p.brand_id)
-        .toLowerCase()
-        .includes(filter.toLowerCase())&&(!statusFilter||p.status===statusFilter),
-    )
-    .sort((a, b) =>
-      sort === "price"
-        ? a.price - b.price
-        : sort === "name"
-          ? a.name.localeCompare(b.name)
-          : b.updated_at.localeCompare(a.updated_at),
-    );
   return (
     <>
       <p role="status" className={notice ? "adminNotice" : ""}>
@@ -195,7 +145,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
       </p>
       {(tab === "overview" || tab === "analytics") && (
         <>
-          {tab==="overview"&&<section className="box adminWelcome"><div><div className="kicker">TELEFON28MOBILE</div><h2>Mağazanızı idarə edin</h2><p>Məhsul əlavə edin, qiymətləri yeniləyin və müştəri müraciətlərini izləyin.</p></div><Link className="button primary" href="/admin/products?new=1">+ Məhsul əlavə et</Link><ol><li>Brend və kateqoriyanı seçin, model və qiyməti yazın.</li><li>Məhsulu saxlayın və öz fotolarınızı yükləyin.</li><li>“Dərc edilib” seçin. Məhsul saytda görünəcək.</li></ol><Link className="textlink" href="/admin/import">CSV / XLSX ilə toplu əlavə et ↗</Link></section>}
+          {tab==="overview"&&<section className="box adminWelcome"><div><div className="kicker">TELEFON28MOBILE</div><h2>Mağazanızı idarə edin</h2><p>Məhsul əlavə edin, qiymətləri yeniləyin və müştəri müraciətlərini izləyin.</p></div><Link className="button primary" href="/admin/products?new=1">+ Məhsul əlavə et</Link><ol><li>Brend və kateqoriyanı seçin, model və qiyməti yazın.</li><li>Fotoları seçin, sıralayın və əsas şəkli müəyyən edin.</li><li>“Dərc edilib” seçin. Məhsul saytda görünəcək.</li></ol><Link className="textlink" href="/admin/import">CSV / XLSX ilə toplu əlavə et ↗</Link></section>}
           <div className="chips">
             {[1, 7, 30, 90].map((n) => (
               <Link key={n} href={"?days=" + n}>
@@ -209,13 +159,14 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
               session: "Brauzer sessiyaları",
               product_view: "Məhsula baxış",
               whatsapp_click: "WhatsApp keçidləri",
-              trade_in: "Trade-in müraciətləri",
+
             }).map(([k, v]) => (
               <article className="box" key={k}>
                 <small>{v}</small>
                 <h2>{totals(k)}</h2>
               </article>
             ))}
+            <article className="box"><small>Saxlanmış Trade-in müraciətləri · {d.days} gün</small><h2 data-testid="request-count">{d.requestCount}</h2><Link href={"/admin/trade-in?days="+d.days+"&request_status="+d.requestStatus}>Müraciətlərə bax →</Link></article>
           </div>
           <small>
             Sayğaclar Bakı vaxtı ilə hesablanır. WhatsApp göstəricisi keçidə
@@ -289,321 +240,8 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
           )}
         </>
       )}
-      {tab === "products" && (
-        <>
-          <div className="catalogBar">
-            <input
-              aria-label="Axtar"
-              placeholder="Ad, brend və ya slug"
-              value={filter}
-              onChange={(e) => {setFilter(e.target.value);setPage(1)}}
-            />
-            <select
-              aria-label="Sıralama"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              <option value="updated">Son dəyişiklik</option>
-              <option value="name">Ad</option>
-              <option value="price">Qiymət</option>
-            </select>
-            <button
-              className="button primary"
-              onClick={() => {
-                select("");
-                setPreview("");
-              }}
-            >
-              Yeni məhsul
-            </button>
-          </div>
-          <label className="statusFilter">Status<select value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}}><option value="">Bütün məhsullar</option>{states.map(s=><option key={s} value={s}>{statusName[s]}</option>)}</select></label>
-          {selected !== null && (
-            <div className="box" key={edit?.id||"new-"+selected}>
-              <form
-                onSubmit={wrap(async (f) => {
-                  const fields = Object.fromEntries(f);
-                  try {
-                    const record = {
-                      ...fields,
-                      slug:
-                        edit?.slug ||
-                        fields.slug ||
-                        slugify(String(fields.name)),
-                      price: Number(fields.price),
-                      description: Object.fromEntries(
-                        ["az", "ru", "en"].map((l) => [l, fields["desc_" + l]]),
-                      ),
-                      specifications: JSON.parse(
-                        String(fields.specifications) || "{}",
-                      ),
-                      condition: fields.condition || null,
-                      featured: fields.featured === "on",
-                      source_url: fields.source_url || null,
-                      source_verified_at: edit?.source_verified_at || null,
-                    };
-                    if (await save({ op: "product", id: edit?.id, record }))
-                      select(String(record.slug));
-                  } catch {
-                    setNotice("Xüsusiyyətlər düzgün JSON olmalıdır.");
-                  }
-                })}
-              >
-                <h3>{edit ? "Məhsulu redaktə et" : "Məhsul əlavə et"}</h3>
-                <Field
-                  name="name"
-                  label="Ad və model"
-                  required
-                  value={edit?.name}
-                />
-                <label>
-                  Slug
-                  <input
-                    name="slug"
-                    defaultValue={edit?.slug}
-                    readOnly={!!edit}
-                    placeholder="Ad əsasında avtomatik"
-                  />
-                </label>
-                <div className="adminGrid">
-                  {(["brand_id", "category_id"] as const).map((k) => (
-                    <label key={k}>
-                      {k === "brand_id" ? "Brend" : "Kateqoriya"}
-                      <select required name={k} defaultValue={edit?.[k] || ""}>
-                        <option value="">Seçin</option>
-                        {(k === "brand_id"
-                          ? d.brands.map((b) => [b.slug, b.name])
-                          : d.categories.map((c) => [c.slug, c.az])
-                        ).map(([v, l]) => (
-                          <option key={v} value={v}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
-                </div>
-                <Field
-                  name="price"
-                  type="number"
-                  label="Qiymət (AZN)"
-                  required
-                  value={edit?.price}
-                />
-                <label><input type="checkbox" name="featured" defaultChecked={edit?.featured}/> Seçilmiş məhsul</label>
-                <Field name="source_url" label="Mənbə keçidi (istəyə görə)" value={edit?.source_url || ""}/>
-                <Field name="storage" label="Yaddaş" value={edit?.storage} />
-                <Field name="color" label="Rəng" value={edit?.color} />
-                <label>
-                  Vəziyyət
-                  <select name="condition" defaultValue={edit?.condition || ""}>
-                    <option value="">Göstərilməyib</option>
-                    <option value="new">Yeni</option>
-                    <option value="used">İşlənmiş</option>
-                    <option value="refurbished">Bərpa edilmiş</option>
-                  </select>
-                </label>
-                {["az", "ru", "en"].map((l) => (
-                  <label key={l}>
-                    Təsvir · {l.toUpperCase()}
-                    <textarea
-                      name={"desc_" + l}
-                      defaultValue={edit?.description?.[l]}
-                    />
-                  </label>
-                ))}
-                <details><summary>Əlavə xüsusiyyətlər</summary><p>İstəyə görə yazın. Məsələn, {"{\"Ekran\":\"6.1 düym\"}"}</p><label>
-                  Xüsusiyyətlər (JSON)
-                  <textarea
-                    name="specifications"
-                    defaultValue={JSON.stringify(edit?.specifications || {})}
-                  />
-                </label></details>
-                <label>
-                  Status
-                  <select name="status" defaultValue={edit?.status || "draft"}>
-                    {states.map((s) => (
-                      <option key={s} value={s}>
-                        {statusName[s]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    const f = new FormData(e.currentTarget.form!);
-                    setPreview(
-                      [
-                        f.get("name"),
-                        f.get("price") + " ₼",
-                        f.get("storage"),
-                        f.get("color"),
-                        f.get("desc_az"),
-                      ].join(" · "),
-                    );
-                  }}
-                >
-                  Önbaxış
-                </button>
-                {preview && <p>{preview}</p>}
-                {button}
-              </form>
-              {edit && (
-                <form onSubmit={wrap(async (f) => {const files=f.getAll("file").filter((x):x is File=>x instanceof File&&x.size>0);const start=Number(f.get("index"));if(start+files.length>8){setNotice("Məhsul üçün maksimum 8 foto. Sıra və fayl sayını yoxlayın.");return;}for(const [i,file] of files.entries()){const next=new FormData();next.set("id",String(f.get("id")));next.set("alt",String(f.get("alt")));next.set("index",String(start+i));next.set("file",file);if(!await save(next,true))return;}})}>
-                  <h3>Foto əlavə et və ya əvəz et</h3>
-                  <input type="hidden" name="id" value={edit.id} />
-                  <label>
-                    Sıra (0–7)
-                    <input
-                      type="number"
-                      name="index"
-                      min="0"
-                      max="7"
-                      defaultValue={Math.min(edit.product_images.length, 7)}
-                      required
-                    />
-                  </label>
-                  <Field
-                    name="alt"
-                    label="Şəklin təsviri"
-                    value={edit.name}
-                    required
-                  />
-                  <input
-                    type="file"
-                    name="file"
-                    multiple
-                    required
-                    accept="image/jpeg,image/png,image/webp"
-                  />
-                  {button}
-                </form>
-              )}
-              {edit && <div className="imageManager">{edit.product_images.slice().sort((a,b)=>a.sort_order-b.sort_order).map(im=><figure key={im.path}><Image unoptimized src={process.env.NEXT_PUBLIC_SUPABASE_URL+"/storage/v1/object/public/product-images/"+im.path} alt={im.alt} width={160} height={120}/><figcaption><span>Sıra {im.sort_order}</span><button disabled={busy||im.sort_order===0} onClick={()=>void save({op:"image-move",product:edit.id,from:im.sort_order,to:im.sort_order-1})}>←</button><button disabled={busy||im.sort_order===7} onClick={()=>void save({op:"image-move",product:edit.id,from:im.sort_order,to:im.sort_order+1})}>→</button><button disabled={busy} onClick={()=>{if(confirm("Foto silinsin?"))void save({op:"image-delete",product:edit.id,index:im.sort_order})}}>Fotonu sil</button></figcaption></figure>)}</div>}
-              <button onClick={() => select(null)}>Bağla</button>
-            </div>
-          )}
-          {!sorted.length&&<div className="box"><h3>{d.products.length?"Uyğun məhsul tapılmadı":"İlk məhsulunuzu əlavə edin"}</h3><p>{d.products.length?"Axtarış və status filtrini dəyişin.":"Başlamaq üçün model, qiymət və bir neçə foto kifayətdir."}</p></div>}
-          {sorted.slice((Math.min(page,Math.max(1,Math.ceil(sorted.length/20)))-1)*20,Math.min(page,Math.max(1,Math.ceil(sorted.length/20)))*20).map((p) => (
-            <article className="tableRow" key={p.slug}>
-              <Image
-                unoptimized
-                src={path(p)}
-                alt=""
-                className="thumb"
-                width={52}
-                height={46}
-              />
-              <span>
-                {p.name}
-                <small>
-                  {" "}
-                  · {p.category_id} / {p.brand_id}
-                </small>
-              </span>
-              <b>{p.price} ₼</b>
-              <span className={"statusBadge status-"+p.status}>{statusName[p.status]}</span>
-              <button
-                onClick={() => {
-                  select(p.slug);
-                  setPreview("");
-                  window.scrollTo({ top: 0 });
-                }}
-              >
-                Redaktə
-              </button>
-              <button
-                disabled={busy || p.status === "archived"}
-                onClick={() => {
-                  if (confirm("Məhsul arxivlənsin?"))
-                    void save({ op: "archive", slug: p.slug });
-                }}
-              >
-                Arxivlə
-              </button>
-            </article>
-          ))}
-        </>
-      )}
-      {tab === "products" && sorted.length>20 && <nav className="pagination" aria-label="Məhsul səhifələri"><button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Əvvəlki</button><span>{Math.min(page,Math.ceil(sorted.length/20))} / {Math.ceil(sorted.length/20)}</span><button disabled={page>=Math.ceil(sorted.length/20)} onClick={()=>setPage(p=>p+1)}>Növbəti</button></nav>}
-      {tab === "import" && (
-        <div className="box">
-          <h3>CSV / XLSX idxalı</h3>
-          <p>
-            Yalnız mağazanın öz məlumatlarını daxil edin. Eyni slug mövcud
-            məhsulun göstərilən sahələrini yeniləyir. Fotolar ayrı yüklənir.
-          </p>
-          <a className="textlink" href="/import-template.csv" download>
-            CSV şablonu ↓
-          </a>
-          <button
-            onClick={async () => {
-              const { Workbook } = (await import("exceljs")).default;
-              const w = new Workbook();
-              w.addWorksheet("Products").addRow([...columns]);
-              const url = URL.createObjectURL(
-                new Blob([await w.xlsx.writeBuffer()]),
-              );
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = "products.xlsx";
-              a.click();
-              setTimeout(() => URL.revokeObjectURL(url), 1000);
-            }}
-          >
-            XLSX şablonu ↓
-          </button>
-          <input
-            type="file"
-            accept=".csv,.xlsx"
-            onChange={async (e) => {
-              setRows([]);
-              const f = e.target.files?.[0];
-              if (!f) return;
-              try {
-                const parsed = await parseSheet(f, true);
-                if (
-                  parsed.some(
-                    (x) =>
-                      !d.brands.some((b) => b.slug === x.brand_id) ||
-                      !d.categories.some((c) => c.slug === x.category_id) ||
-                      x.status === "archived",
-                  )
-                )
-                  throw Error(
-                    "Brend və kateqoriya əvvəlcədən yaradılmalıdır. Arxiv idxal edilmir.",
-                  );
-                setRows(parsed);
-                setNotice("Önbaxışı yoxlayın.");
-              } catch (err) {
-                setNotice(String(err));
-              }
-            }}
-          />
-          {rows.map((r) => (
-            <p key={String(r.slug)}>
-              {String(r.name)} · {String(r.price)} ₼ · {String(r.status)} · {String(r.category_id)} {r.category_suggested ? "(təklif — yoxlayın)" : ""} ·{" "}
-              {d.products.some((p) => p.slug === r.slug) ? "Yenilənir" : "Yeni"}
-            </p>
-          ))}
-          {!!rows.length && (
-            <button
-              className="button primary"
-              disabled={busy}
-              onClick={async () => {
-                if (
-                  confirm(rows.length + " sətir saxlanılsın?") &&
-                  (await save({ op: "import", rows }))
-                )
-                  setRows([]);
-              }}
-            >
-              İdxalı təsdiqlə
-            </button>
-          )}
-        </div>
-      )}
+      {tab === "products" && <ProductsPanel data={d} newProduct={newProduct} editSlug={editSlug}/> }
+      {tab === "import" && <SimpleImportPanel data={d}/> }
       {tab === "categories" && (
         <>
           <form
@@ -728,16 +366,15 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
       )}
       {tab === "trade-in" && (
         <>
-          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+          <div className="adminFilters"><label>Dövr<select value={d.days} onChange={e=>router.push("?days="+e.target.value+"&request_status="+d.requestStatus)}>{[1,7,30,90].map(n=><option key={n} value={n}>{n} gün</option>)}</select></label><label>Müraciət statusu<select value={d.requestStatus} onChange={e=>router.push("?days="+d.days+"&request_status="+e.target.value)}>
             <option value="">Bütün statuslar</option>
             {["new", "contacted", "closed"].map((s) => (
               <option key={s} value={s}>
                 {statusName[s]}
               </option>
             ))}
-          </select>
+          </select></label></div><p><span data-testid="request-count">{d.requestCount}</span> saxlanmış müraciət · Bakı vaxtı ilə {d.days} gün</p>
           {d.requests
-            .filter((r) => !filter || r.status === filter)
             .map((r) => (
               <article className="box" key={r.id}>
                 <h3>
@@ -747,9 +384,9 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
                   {r.name} · {r.phone}
                 </p>
                 <p>
-                  {r.condition} · {r.notes}
+                  {({good:"Yaxşı",fair:"Orta",damaged:"Zədəli"} as Record<string,string>)[r.condition]||r.condition} · {r.notes}
                 </p>
-                <small>{r.created_at.slice(0, 10)}</small>
+                <small>{new Date(r.created_at).toLocaleString("az-AZ",{timeZone:"Asia/Baku"})}</small>
                 <select
                   aria-label="Status"
                   value={r.status}
@@ -772,3 +409,5 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
     </>
   );
 }
+
+

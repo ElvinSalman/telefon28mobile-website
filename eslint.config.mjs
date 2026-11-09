@@ -3,6 +3,7 @@ import ts from "eslint-config-next/typescript";
 const config = [
   ...next,
   ...ts,
-  { ignores: [".next/**", "next-env.d.ts", "test-results/**"] },
+  { ignores: [".vercel/**", ".next/**", "next-env.d.ts", "test-results/**"] },
 ];
 export default config;
+

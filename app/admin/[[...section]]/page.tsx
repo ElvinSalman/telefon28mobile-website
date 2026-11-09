@@ -8,7 +8,7 @@ import { AdminConsole } from "@/components/admin-console";
 const sections = {
   overview: "İcmal",
   products: "Məhsullar",
-  categories: "Kateqoriyalar",
+  categories: "Kateqoriyalar / Brendlər",
   locations: "Filiallar",
   settings: "Ayarlar",
   "trade-in": "Trade-in",
@@ -20,14 +20,15 @@ export default async function Admin({
   searchParams,
 }: {
   params: Promise<{ section?: string[] }>;
-  searchParams: Promise<{ days?: string;new?:string }>;
+  searchParams: Promise<{ days?: string;new?:string;edit?:string;request_status?:string }>;
 }) {
   const db = await adminDb();
   if (!db) redirect("/admin/login");
   const route = (await params).section || [];
   const tab = route[0] || "overview";
   if (route.length > 1 || !Object.hasOwn(sections, tab)) notFound();
-  const query=await searchParams;const days = Number(query.days) || 7;
+  const query=await searchParams;const days = [1,7,30,90].includes(Number(query.days))?Number(query.days):7;
+  const requestStatus=["new","contacted","closed"].includes(query.request_status||"")?query.request_status!:"";
   const start = new Date(
     new Date().getTime() +
       4 * 3600000 -
@@ -35,7 +36,10 @@ export default async function Admin({
   )
     .toISOString()
     .slice(0, 10);
-  const [products, brands, categories, stores, settings, requests, stats] =
+  const end=new Date(new Date().getTime()+4*3600000+86400000).toISOString().slice(0,10);
+  const requestQuery=()=>{let q=db.from("trade_in_requests").select("*").gte("created_at",start+"T00:00:00+04:00").lt("created_at",end+"T00:00:00+04:00");if(requestStatus)q=q.eq("status",requestStatus);return q;};
+  let countQuery=db.from("trade_in_requests").select("id",{count:"exact",head:true}).gte("created_at",start+"T00:00:00+04:00").lt("created_at",end+"T00:00:00+04:00");if(requestStatus)countQuery=countQuery.eq("status",requestStatus);
+  const [products, brands, categories, stores, settings, requests, stats,requestCount] =
     await Promise.all([
       readPages((from, to) =>
         db
@@ -51,9 +55,7 @@ export default async function Admin({
       db.from("site_settings").select("whatsapp").single(),
       tab === "trade-in"
         ? readPages((from, to) =>
-            db
-              .from("trade_in_requests")
-              .select("*")
+            requestQuery()
               .order("created_at", { ascending: false })
               .order("id")
               .range(from, to),
@@ -64,14 +66,16 @@ export default async function Admin({
           .from("daily_stats")
           .select("*")
           .gte("day", start)
+          .lt("day",end)
           .order("day")
           .order("event")
           .order("subject")
           .range(from, to),
       ),
+      countQuery,
     ]);
   if (
-    [products, brands, categories, stores, settings, requests, stats].some(
+    [products, brands, categories, stores, settings, requests, stats,requestCount].some(
       (r) => r.error,
     )
   )
@@ -89,7 +93,7 @@ export default async function Admin({
         {Object.entries(sections).map(([s, label]) => (
           <Link
             aria-current={s === tab}
-            href={"/admin/" + (s === "overview" ? "" : s)}
+            href={"/admin/" + (s === "overview" ? "" : s)+"?days="+days}
             key={s}
           >
             {label}
@@ -100,7 +104,9 @@ export default async function Admin({
         key={tab}
         tab={tab}
         newProduct={query.new==="1"}
+        editSlug={query.edit}
         data={{
+          requestCount:requestCount.count||0,days,requestStatus,
           products: products.data || [],
           brands: brands.data || [],
           categories: categories.data || [],
@@ -113,3 +119,4 @@ export default async function Admin({
     </div>
   );
 }
+

@@ -30,6 +30,8 @@ export function Art({
   large?: boolean;
   index?: number;
 }) {
+  const { t } = useText();
+  if (!p.images?.length) return <div className={large ? "art big missingPhoto" : "art missingPhoto"}><Scan aria-hidden="true"/><span>{t("missingPhoto")}</span></div>;
   return (
     <Image
       src={p.images?.[index]?.url || artFor(p)}
@@ -193,7 +195,7 @@ export function Detail({ p }: { p: Product }) {
               p.category}
           </div>
           <h1>{p.name}</h1>
-          <p>{p.description?.[locale]}</p>
+          <p>{p.description?.[locale] || p.description?.az}</p>
           <p>{[p.storage, p.color].filter(Boolean).join(" · ")}</p>
           <h2>{money(p.price)}</h2>
           <small>{t("priceNote")}</small>
@@ -257,3 +259,4 @@ export function Detail({ p }: { p: Product }) {
     </div>
   );
 }
+
