@@ -46,10 +46,12 @@ The `product-images` bucket is public by design. Each uploaded object's URL can 
 
 Use the private terminal provisioning script or the confirmed-user Dashboard procedure in [ADMIN_GUIDE.md](ADMIN_GUIDE.md). Both create a real Supabase Auth user and explicitly add its UUID to admin_memberships. Public signup remains disabled. Passwords are entered privately; no invitations or reset emails are required. /admin/password requires allowlist membership and the current password. Self-service email recovery is disabled until compatible mail configuration exists.
 
-Exact callback URL: https://telefon28mobile-website.vercel.app/auth/callback. Add it under Authentication → URL Configuration → Redirect URLs if absent. Keep the existing localhost redirect. This route remains available for future compatible email flows, but does not bypass admin membership. Remote allowlist persistence has not been independently verified through management settings.
+Exact callback URL: https://telefon28mobile-website.vercel.app/auth/callback. Add it under Authentication → URL Configuration → Redirect URLs if absent. Keep the existing localhost redirect. This route remains available for future compatible email flows, but does not bypass admin membership. The effective exact callback allowlist was verified in production on 9 November using a disposable Auth recovery token without sending email.
 
 ## 8 November release status
 
 Both 202611060001_shop.sql and 202611080001_page_visits.sql are applied to the existing hosted project. Ten verified owner-authorized products and ten Storage photographs have been imported. Production Vercel variables are configured. The server uses the existing service-role credential in sensitive environment storage; no server credential is committed.
 
 Local test ports are 55321 (API), 55322 (PostgreSQL) and 55324 (mail), because Windows reserved the old 543xx range. Global public signup remains disabled; the local email provider must be enabled to test password login.
+
+Production verification on 9 November: the exact callback redirect was allowed, real owner password login/logout succeeded, and protected password changes succeeded with a disposable administrator. No SMTP was used.

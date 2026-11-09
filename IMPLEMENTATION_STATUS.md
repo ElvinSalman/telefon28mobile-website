@@ -1,11 +1,14 @@
 # Implementation status — 9 November 2026
 
-Existing workspace: C:/Users/Elvin/Desktop/telefon28mobile. Existing repository: https://github.com/ElvinSalman/telefon28mobile-website. Canonical production: https://telefon28mobile-website.vercel.app.
+Workspace: C:/Users/Elvin/Desktop/telefon28mobile
+Repository: https://github.com/ElvinSalman/telefon28mobile-website
+Live production: https://telefon28mobile-website.vercel.app
+Admin: https://telefon28mobile-website.vercel.app/admin/login
 
-Production baseline 8a9b45a includes a real hosted Supabase catalog with ten verified products and ten authorized product photographs, three branches, real admin CRUD/import, trade-in ingestion and aggregate analytics. The 8 November local build/lint/typecheck and 18 tests passed. Deployment dpl_JAtZMfEUUX5AAvPkxBYYpf9jDTAu was Ready and aliased to production. Post-deploy tests were interrupted by an automatic approval review usage-limit failure; they are being resumed.
+Real hosted Supabase DB/Auth/Storage are connected. Three migrations are applied. Ten verified products with authorized photos and source metadata are published. Explicit admin membership and RLS protect writes and private requests. The real first admin is provisioned and production login/logout is verified; no SMTP is required. The exact callback redirect is effectively allowlisted, verified without email.
 
-9 November changes: manual confirmed-user provisioning without email; explicit allowlist gate on password changes; current-password verification; disabled email-reset UI; image reordering/removal and multi-file upload; pagination and category suggestions; source provenance fields and featured flag; verified Google Maps embed. Migration 202611090001_catalog_management.sql was authorized and applied locally; hosted application follows local acceptance checks.
+Acceptance: lint/typecheck/build passed; 19 local integration/browser tests passed; 14 production public browser tests passed; hosted admin CRUD/gallery, public updates, WhatsApp price validation, trade-in and real analytics writes passed. QA fixtures were cleaned. All three locales, both themes and seven widths were tested. Interactive map and catalog image loading were verified. See IMPLEMENTATION_REPORT.md for evidence and limitations.
 
-No missing database credential. The owner's private password must be entered by the owner through the provisioning script or Supabase Dashboard, never in chat. The exact callback route exists; remote Auth redirect allowlist has not been independently read. No custom SMTP is configured and no invitation/reset-email delivery is claimed.
+Remaining owner actions: privately reveal the encrypted temporary password with scripts/show-admin-password.ps1, change it after login, confirm ongoing inventory/prices, choose commercially eligible hosting, and approve legal/retention details. Email recovery/SMTP, private trade-in image uploads and ZIP photo imports are not enabled. Additional categories need verified owner products. No missing backend credential remains.
 
-Preserved restore points: backup/production-ecc115a, backup/pre-client-polish-20261108 and codex/backup-before-manual-admin-20261109. Unrelated user brief/logo source files remain untouched.
+Restore points: backup/production-ecc115a, backup/pre-client-polish-20261108, codex/backup-before-manual-admin-20261109. Unrelated owner brief and logo-source files were preserved.

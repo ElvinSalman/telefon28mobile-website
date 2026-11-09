@@ -1,7 +1,7 @@
 # Run personally in PowerShell. Do not run through chat tools or paste the output into chat.
 $ErrorActionPreference='Stop'
 $file=Join-Path $PSScriptRoot '../.vercel/first-admin-password.dpapi'
-$secure=Get-Content -LiteralPath $file -Raw | ConvertTo-SecureString
+$secure=(Get-Content -LiteralPath $file -Raw).Trim() | ConvertTo-SecureString
 $pointer=[Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
   Write-Host 'Temporary administrator password (change it after signing in):'

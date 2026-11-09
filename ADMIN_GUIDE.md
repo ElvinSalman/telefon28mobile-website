@@ -44,3 +44,5 @@ Keep the existing http://localhost:3000/** local entry. In Authentication → UR
 ## Generated first-admin credential on this computer
 
 The authorized first account has been provisioned with a random temporary password. Only an encrypted, Windows-user-bound copy is stored at .vercel/first-admin-password.dpapi (ignored by Git). Run powershell -NoProfile -ExecutionPolicy Bypass -File scripts/show-admin-password.ps1 yourself to reveal it in your private terminal. Never run that command through chat tooling or paste its output into chat. Sign in, change the password through /admin/password, and then remove the encrypted bootstrap file. The file is usable only by the Windows account that created it.
+
+Production verification on 9 November: the exact callback redirect was allowed, real owner password login/logout succeeded, and protected password changes succeeded with a disposable administrator. No SMTP was used.
