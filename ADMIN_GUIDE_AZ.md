@@ -1,7 +1,7 @@
 # Telefon28Mobile idarəetmə təlimatı
 
 ## İlk giriş
-Sayt sahibi əvvəlcə verilənlər bazası və yönləndirmə ünvanlarını yoxlayır. Dəvət yalnız canlı /auth/callback işlədikdən sonra Supabase-in Authentication → Users bölməsindən göndərilir. Sahib dəvət olunan şəxsin UUID-sinə ayrıca idarəçi hüququ verir. SQL nümunəsi DATABASE_SETUP.md faylındadır. Şifrəni dəvət keçidi vasitəsilə özünüz təyin edin. /admin/login səhifəsindən daxil olun. İctimai kompüterdə işi bitirdikdən sonra “Çıxış” düyməsini basın.
+Hesab Supabase-də təsdiqlənmiş e-poçt və şəxsi şifrə ilə əl ilə yaradılır; UUID ayrıca admin_memberships siyahısına əlavə edilir. Dəvət və bərpa e-poçtu tələb olunmur. Təhlükəsiz terminal əmri və Dashboard addımları ADMIN_GUIDE.md faylındadır. /admin/login açın. Müvəqqəti şifrə ilə daxil olmusunuzsa, Şifrəni dəyiş bölməsində cari və yeni şifrəni yazın. Şifrəni heç vaxt çatda paylaşmayın.
 
 ## Məhsulu satış kataloquna əlavə etmək
 1. **Kateqoriyalar** bölməsində brendi əlavə edin. Yeni kateqoriya yaradarkən AZ, RU və EN adlarını yazın.

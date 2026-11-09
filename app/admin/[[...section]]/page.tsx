@@ -80,7 +80,7 @@ export default async function Admin({
     <div className="wrap inner">
       <header className="adminHeader">
         <Link href="/az">Telefon28Mobile ↗</Link>
-        <div className="contactActions"><AdminThemeSwitch/><form action={logout}>
+        <div className="contactActions"><Link className="button outline" href="/admin/password">Şifrəni dəyiş</Link><AdminThemeSwitch/><form action={logout}>
           <button>Çıxış</button>
         </form></div>
       </header>

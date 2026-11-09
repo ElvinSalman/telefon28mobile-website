@@ -1,37 +1,45 @@
-# Telefon28Mobile implementation report
+# Telefon28Mobile implementation report — 9 November 2026
 
-## Repository and release
-Local workspace: C:/Users/Elvin/Desktop/telefon28mobile. Existing repository: https://github.com/ElvinSalman/telefon28mobile-website. Original production revision: ecc115ac7f0be0ad138fd138341cb4c3419a8f0a. The local and remote backup/production-ecc115a branches preserve it. Development uses feature/admin-catalog. The existing Vercel project belongs to salmanovelvin96-5841s-projects.
+## Existing project and release
+Workspace: C:/Users/Elvin/Desktop/telefon28mobile. Repository: https://github.com/ElvinSalman/telefon28mobile-website. Canonical production: https://telefon28mobile-website.vercel.app. Admin: https://telefon28mobile-website.vercel.app/admin/login.
 
-## Implemented
-The existing App Router storefront now reads owner-published configurations, image galleries, brands, categories, settings and locations under Supabase public RLS. No products were seeded. Existing marketplace research is historical. The official seal was extracted from the provided PDF. Dark/light modes, AZ/RU/EN, catalog URLs, saved shopping state and localized metadata are retained. Archived configurations return 404. A single external map link and three distinct address cards appear on localized stores/contact routes.
+The existing Next.js design, official supplied logo, AZ/RU/EN, dark/light modes, cart and wishlist are preserved. Restore branches preserve the original production and both pre-change baselines. No new project, repository, DNS or paid service was created.
 
-The private administration area includes overview, products, categories, brands, branches, settings, spreadsheet preview/import, trade-in triage and aggregate analytics. A product configuration has one stable slug, one price, optional storage/color and localized text. Uploads use an authenticated admin session, validate/decode supported files, and write WebP to the public product bucket. Private customer media is deferred; the trade-in form accepts text only.
+## Database and security
+The existing Supabase project bpsmcmmdtxteeswaumse has migrations 202611060001, 202611080001 and 202611090001 applied. RLS protects products, categories, brands, branches, images, admin membership, trade-in PII and aggregate analytics. Public reads expose only published products in active categories. Admin APIs and password pages/actions check verified Auth claims and explicit membership. Public signup and anonymous Auth are disabled. Product photos use public Storage with admin-only writes. Server credentials remain in sensitive Vercel environment storage, never in client code or Git.
 
-The order button requests a fresh quote on the server. The server validates quantity, visibility and prices, composes a localized WhatsApp link with per-item details and totals, and flags changed orders. It records an order-link click separately from a sale. Trade-in and its submission counter commit together. Anonymous session/view/order-click metrics are best-effort browser measurements. No sales or revenue are inferred.
+Ten products and their photos are stored in hosted Supabase; all ten have source URLs and dated verification metadata. Public catalog reads returned ten products. Admin writes are read on subsequent requests without redeployment. Products are archived by default. Galleries support up to eight optimized photos, multi-file upload, replacement, reorder and removal. CSV/XLSX import includes preview, duplicate checks, validation and category suggestions that require review.
 
-## Verification
-- The untouched original passed its production build and ten baseline tests.
-- A disposable local Supabase Docker stack exercised PostgreSQL, PostgREST, Auth and Storage with anonymous, ordinary and explicitly authorized admin identities. Test users and catalog fixtures were confined to loopback.
-- The owner-workflow suite covers login/logout, invite/recovery token consumption, RLS rejection, product management, CSV and XLSX parsing, duplicate prevention, import preview, uploads, direct product routes, cart quantities, fresh quotes, stale-price rejection, persisted trade-ins and actual daily counters.
-- Chrome exercised widths 320, 375, 390, 768, 1024, 1440 and 1920, the three public languages, both themes, private-page redirects, three addresses and the single supplied map.
-- npm production dependency audit reported zero vulnerabilities after patching ExcelJS's UUID dependency. Field Core Web Vitals and real mail delivery need operating traffic and an actual recipient.
+## Admin provisioning
+The nominated first administrator has been created as a confirmed Supabase Auth user and added to admin_memberships. No email was sent. Its generated temporary password is stored only as Windows-user-encrypted ciphertext in the ignored .vercel directory. The owner reveals it privately with scripts/show-admin-password.ps1 and changes it at /admin/password, which requires the current password. ADMIN_GUIDE.md documents the private setup and Dashboard alternative. No invitation or recovery email is required or claimed. SMTP/email recovery remains disabled.
 
-## Hosted backend
-The owner approved migration 202611060001_shop.sql after local security checks. The existing London project bpsmcmmdtxteeswaumse lists matching local/remote migration 202611060001. Hosted publishable-key reads returned nine categories, three locations and zero products. Private trade-in/contact records, membership and analytics tables rejected anonymous reads. The CLI reported a local pg-delta cache warning after the migration committed. Migration history and subsequent live reads independently verified the applied schema. No hosted test account, trade-in or product was inserted.
+## Verified launch catalog
+Owner authorization for these specific seller photographs was given in the conversation. No bulk crawler, bypass or live sync was implemented. Original watermarks remain. Prices were checked on 8 November; availability still requires owner confirmation. Used-device condition notes are preserved in AZ/RU/EN.
 
-## Owner handoff
-Use /admin/login after the release. First verify /auth/callback on the intended origin and configure the exact allowed redirect and email templates. Then invite the chosen admin and explicitly grant that authenticated UUID membership. Details are in DATABASE_SETUP.md. ADMIN_GUIDE_AZ.md explains adding products, uploading photos, publication and trade-in handling. IMPORT_GUIDE.md covers safe updates.
+| Product / configuration | AZN | Source |
+|---|---:|---|
+| Apple iPhone 14 128 GB Blue | 559 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/49076729) |
+| Apple iPhone 15 128 GB Black | 789 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/49041247) |
+| Apple iPhone 17 Pro 256 GB Silver | 2199 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/49104970) |
+| Xiaomi Redmi A7 Pro 128 GB Black | 329 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/47822941) |
+| Apple iPhone 18 Pro 512 GB Black | 3649 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/48822711) |
+| Apple iPhone 15 128 GB Blue | 1399 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/47001254) |
+| Apple Watch Series 11 Aluminum 42mm  Jet Black | 649 | [Listing](https://tap.az/elanlar/elektronika/smart-saat-ve-qolbaqlar/48607589) |
+| Dyson Airwrap i.d Ceramic Pop  Ceramic Pop | 949 | [Listing](https://tap.az/elanlar/sexsi-esyalar/gozellik-saglamliq/43754376) |
+| Apple Watch Series 11 Aluminum 42mm  Rose Gold | 649 | [Listing](https://tap.az/elanlar/elektronika/smart-saat-ve-qolbaqlar/48607583) |
+| Xiaomi Redmi Note 15 256 GB Black | 519 | [Listing](https://tap.az/elanlar/elektronika/telefonlar/46774272) |
 
-Branch addresses are Azadlıq prospekti, 39D, Bakı; Dilarə Əliyeva küçəsi, 21, Bakı; and Azadlıq prospekti, 39E, Bakı. The shared contact is +994 55 600 20 01. The one map link is https://maps.app.goo.gl/FHLKC7UydaLqFPM99. Individual branch pins and hours remain optional until confirmed.
+Tablets, laptops, headphones, consoles, accessories and other electronics need additional verified owner data/photos; relevant distinct category icons replace repeated artificial graphics meanwhile. No invented stock or prices are supplied for those categories.
 
-## Release gates
-The existing Vercel team is on Hobby. Its production alias can host a noncommercial demo. Commercial operation needs owner selection of an eligible plan or host. No purchase was authorized. The owner must provide original catalog data and approved photography, choose the first admin, approve retention and legal terms, verify SMTP, and verify ownership in Search Console before submitting /sitemap.xml. Hosting and Auth settings are tracked in DEPLOYMENT_CHECKLIST.md.
+## Branches, map and customer flows
+All three full addresses are shown: Azadlıq prospekti 39D, Dilarə Əliyeva küçəsi 21 and Azadlıq prospekti 39E, Bakı. The provided Google Maps link resolved to Telefon 28 Store at 40.3775119,49.8481256. A Google Maps iframe uses that one verified location; no claim is made that it marks all three branches. The exact owner share link remains a separate CTA, spaced from WhatsApp.
 
-## Verified release decision — 6 November 2026
+WhatsApp quotes re-fetch current prices/status and encode item details, quantities and totals for 994556002001. Customers manually send the message. Trade-in form data is validated, rate-limited and persisted; admins review and update status. Analytics count real pageviews, approximate tab sessions, product views, WhatsApp clicks and trade-in submissions, not unique people or completed sales. DNT is respected. Technical SEO includes localized metadata/canonical/hreflang, dynamic sitemap, robots and factual structured data.
 
-The owner selected preview-only operation until eligible commercial hosting is approved. The existing project built application commit dea1b42d39e2e5c8c120d3397206427dfce52711 from feature/admin-catalog. The verified immutable preview is https://telefon28mobile-website-lyo5wem7k.vercel.app/az and its admin entry point is https://telefon28mobile-website-lyo5wem7k.vercel.app/admin/login. Chrome was launched with the preview URL. Vercel deployment protection may require signing in.
+## Local acceptance results
+Final lint/typecheck/build passed. All 19 local Chrome/Supabase tests passed, covering RLS allow/deny, confirmed manual password login, current-password changes, private page gates, product create/edit/publish/archive, image upload/reorder/removal, CSV/XLSX validation/import, stale cart prices, WhatsApp composition, persisted trade-ins and counters, callback token handling, AZ/RU/EN, dark/light and widths 320/375/390/768/1024/1440/1920.
 
-The final local build, lint, strict TypeScript and all 18 browser/integration tests passed. Preview HTTPS checks through authenticated Vercel access returned 200 for /az, /ru, /en, /en/stores, /en/trade-in and /admin/login. /admin/products redirected (307) and an invalid /auth/callback redirected (303). The rendered homepage showed the connected empty-catalog state, and the stores page included the exact map link. Order composition was intercepted locally before external delivery. Hosted tests did not send a WhatsApp message, insert test customer details or create an admin. Hosted email deliverability and user-specific admin access remain pending.
+Production acceptance and screenshots are recorded below after deployment; local success alone is not claimed as production success.
 
-Both production main and backup/production-ecc115a resolve to ecc115ac7f0be0ad138fd138341cb4c3419a8f0a. The original public storefront returned HTTP 200 at https://telefon28mobile-website.vercel.app/en. The new Supabase variables, including the sensitive ingest credential, were configured for the feature branch preview only. Production Vercel variables, the production Auth allowlist, invite templates and DNS await a separately approved release. The hosted database has an applied schema and a public product-image bucket. First-admin invitation is intentionally deferred until the approved production callback is live.
+## Remaining operating work
+No purchase was made. Existing Vercel team remains Hobby; the owner must arrange hosting eligible for commercial operation. Email recovery/SMTP, customer image uploads/private media, ZIP photo imports, custom-domain DNS, Search Console ownership, legal/retention policy approval and additional category inventory remain manual or out of scope. Trade-in images are not accepted, so no private customer media bucket is advertised. Exact remote Auth redirect allowlist persistence will be tested with a disposable token without sending email. Public product updates and operator login must be confirmed in production before final signoff.

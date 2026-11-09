@@ -20,6 +20,9 @@ type Row = {
   specifications: Record<string, string>;
   product_images: { path: string; sort_order: number; alt: string }[];
   updated_at: string;
+  featured: boolean;
+  source_url: string | null;
+  source_verified_at: string | null;
 };
 type Cat = {
   slug: string;
@@ -97,6 +100,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
   const router = useRouter();
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("");
   const [statusFilter,setStatusFilter]=useState("");
   const [sort, setSort] = useState("updated");
@@ -292,7 +296,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
               aria-label="Axtar"
               placeholder="Ad, brend və ya slug"
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
+              onChange={(e) => {setFilter(e.target.value);setPage(1)}}
             />
             <select
               aria-label="Sıralama"
@@ -313,7 +317,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
               Yeni məhsul
             </button>
           </div>
-          <label className="statusFilter">Status<select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Bütün məhsullar</option>{states.map(s=><option key={s} value={s}>{statusName[s]}</option>)}</select></label>
+          <label className="statusFilter">Status<select value={statusFilter} onChange={e=>{setStatusFilter(e.target.value);setPage(1)}}><option value="">Bütün məhsullar</option>{states.map(s=><option key={s} value={s}>{statusName[s]}</option>)}</select></label>
           {selected !== null && (
             <div className="box" key={edit?.id||"new-"+selected}>
               <form
@@ -334,6 +338,9 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
                         String(fields.specifications) || "{}",
                       ),
                       condition: fields.condition || null,
+                      featured: fields.featured === "on",
+                      source_url: fields.source_url || null,
+                      source_verified_at: edit?.source_verified_at || null,
                     };
                     if (await save({ op: "product", id: edit?.id, record }))
                       select(String(record.slug));
@@ -383,6 +390,8 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
                   required
                   value={edit?.price}
                 />
+                <label><input type="checkbox" name="featured" defaultChecked={edit?.featured}/> Seçilmiş məhsul</label>
+                <Field name="source_url" label="Mənbə keçidi (istəyə görə)" value={edit?.source_url || ""}/>
                 <Field name="storage" label="Yaddaş" value={edit?.storage} />
                 <Field name="color" label="Rəng" value={edit?.color} />
                 <label>
@@ -441,7 +450,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
                 {button}
               </form>
               {edit && (
-                <form onSubmit={wrap((f) => save(f, true))}>
+                <form onSubmit={wrap(async (f) => {const files=f.getAll("file").filter((x):x is File=>x instanceof File&&x.size>0);const start=Number(f.get("index"));if(start+files.length>8){setNotice("Məhsul üçün maksimum 8 foto. Sıra və fayl sayını yoxlayın.");return;}for(const [i,file] of files.entries()){const next=new FormData();next.set("id",String(f.get("id")));next.set("alt",String(f.get("alt")));next.set("index",String(start+i));next.set("file",file);if(!await save(next,true))return;}})}>
                   <h3>Foto əlavə et və ya əvəz et</h3>
                   <input type="hidden" name="id" value={edit.id} />
                   <label>
@@ -464,17 +473,19 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
                   <input
                     type="file"
                     name="file"
+                    multiple
                     required
                     accept="image/jpeg,image/png,image/webp"
                   />
                   {button}
                 </form>
               )}
+              {edit && <div className="imageManager">{edit.product_images.slice().sort((a,b)=>a.sort_order-b.sort_order).map(im=><figure key={im.path}><Image unoptimized src={process.env.NEXT_PUBLIC_SUPABASE_URL+"/storage/v1/object/public/product-images/"+im.path} alt={im.alt} width={160} height={120}/><figcaption><span>Sıra {im.sort_order}</span><button disabled={busy||im.sort_order===0} onClick={()=>void save({op:"image-move",product:edit.id,from:im.sort_order,to:im.sort_order-1})}>←</button><button disabled={busy||im.sort_order===7} onClick={()=>void save({op:"image-move",product:edit.id,from:im.sort_order,to:im.sort_order+1})}>→</button><button disabled={busy} onClick={()=>{if(confirm("Foto silinsin?"))void save({op:"image-delete",product:edit.id,index:im.sort_order})}}>Fotonu sil</button></figcaption></figure>)}</div>}
               <button onClick={() => select(null)}>Bağla</button>
             </div>
           )}
           {!sorted.length&&<div className="box"><h3>{d.products.length?"Uyğun məhsul tapılmadı":"İlk məhsulunuzu əlavə edin"}</h3><p>{d.products.length?"Axtarış və status filtrini dəyişin.":"Başlamaq üçün model, qiymət və bir neçə foto kifayətdir."}</p></div>}
-          {sorted.map((p) => (
+          {sorted.slice((Math.min(page,Math.max(1,Math.ceil(sorted.length/20)))-1)*20,Math.min(page,Math.max(1,Math.ceil(sorted.length/20)))*20).map((p) => (
             <article className="tableRow" key={p.slug}>
               <Image
                 unoptimized
@@ -515,6 +526,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
           ))}
         </>
       )}
+      {tab === "products" && sorted.length>20 && <nav className="pagination" aria-label="Məhsul səhifələri"><button disabled={page<=1} onClick={()=>setPage(p=>p-1)}>Əvvəlki</button><span>{Math.min(page,Math.ceil(sorted.length/20))} / {Math.ceil(sorted.length/20)}</span><button disabled={page>=Math.ceil(sorted.length/20)} onClick={()=>setPage(p=>p+1)}>Növbəti</button></nav>}
       {tab === "import" && (
         <div className="box">
           <h3>CSV / XLSX idxalı</h3>
@@ -550,7 +562,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
               const f = e.target.files?.[0];
               if (!f) return;
               try {
-                const parsed = await parseSheet(f);
+                const parsed = await parseSheet(f, true);
                 if (
                   parsed.some(
                     (x) =>
@@ -571,7 +583,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
           />
           {rows.map((r) => (
             <p key={String(r.slug)}>
-              {String(r.name)} · {String(r.price)} ₼ · {String(r.status)} ·{" "}
+              {String(r.name)} · {String(r.price)} ₼ · {String(r.status)} · {String(r.category_id)} {r.category_suggested ? "(təklif — yoxlayın)" : ""} ·{" "}
               {d.products.some((p) => p.slug === r.slug) ? "Yenilənir" : "Yeni"}
             </p>
           ))}
@@ -611,6 +623,7 @@ export function AdminConsole({ tab, data: d,newProduct=false }: { tab: string; d
               {d.brands.map((b) => b.name + " (" + b.slug + ")").join(", ")}
             </small>
           </form>
+          <details className="box"><summary>Brend adlarını redaktə et</summary>{d.brands.map(b=><form key={b.slug} onSubmit={wrap(f=>save({op:"brand",slug:b.slug,name:f.get("name")}))}><Field name="name" label={b.slug} value={b.name} required/>{button}</form>)}</details>
           {[...d.categories, null].map((c) => (
             <details key={c?.slug || "new"} className="box">
               <summary>{c?.az || "Yeni kateqoriya"}</summary>

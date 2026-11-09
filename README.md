@@ -9,7 +9,7 @@ Use Node 22 and npm. Run `npm ci`, copy `.env.example` to your ignored local env
 ## Features and implementation
 
 - The existing dark-first, light-switchable storefront retains its hero, motion effects, localized URLs, catalog filters, search, quick view, cart and wishlist. The owner-supplied vector logo is used in navigation and the footer.
-- Published products, active categories, branches, settings and gallery images are read with the publishable key under PostgreSQL RLS. Old marketplace snapshots are historical research. No sample inventory is seeded. The storefront distinguishes an empty catalog from a connection failure.
+- Published products, active categories, branches, settings and gallery images are read with the publishable key under PostgreSQL RLS. Ten owner-authorized launch products and photographs are recorded in data/verified-listings.json; this is a one-time import with no live marketplace sync. The storefront distinguishes an empty catalog from a connection failure.
 - Catalog variants use a separate stable slug per priced configuration. Public product images are decoded, resized and re-encoded as WebP. Only upload images approved for public distribution, even when the product is a draft.
 - Authenticated admin routes verify Supabase claims and a server-managed membership. Privileged store edits use the administrator's session under RLS. The server-only ingest client calls restricted database functions for throttled trade-ins and aggregate metrics.
 - WhatsApp checkout re-reads published configurations and prices. If an item changes, the shopper reviews the refreshed basket. The URL carries unit and extended prices, quantities, links and the total. The customer sends the actual message in WhatsApp.
@@ -30,7 +30,7 @@ npx supabase start
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-local.ps1
 ```
 
-The test helper uses only the local loopback stack. It passes temporary credentials in process memory, builds against that environment, starts the app on port 3028 and runs Chrome tests. Never run fixture setup against hosted data. Rebuild with the desired environment before serving or deploying. For public smoke tests set TEST_ORIGIN to the authorized preview and run the storefront suite.
+The test helper uses only the local loopback stack. It passes temporary credentials in process memory, builds against that environment, starts the app on port 3028 and runs Chrome tests. The local fixture suite refuses hosted data. The separate scripts/verify-hosted.mjs performs an explicitly authorized production smoke test and cleans up its own QA records. Rebuild with the desired environment before serving or deploying. For public smoke tests set TEST_ORIGIN to the authorized preview and run the storefront suite.
 
 ## Operations
 

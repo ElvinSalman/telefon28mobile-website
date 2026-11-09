@@ -316,6 +316,24 @@ test("protected UI, publish/import, real uploaded image, cart quote, trade-in an
   await page.getByRole("button", { name: "Çıxış" }).click();
   await expect(page).toHaveURL(/admin\/login/);
 });
+test("admin gallery reorder and removal preserve remaining photos", async ({page}) => {
+  test.skip(!local);
+  await page.goto("/admin/login");
+  await page.getByLabel("E-poçt",{exact:true}).first().fill(email);
+  await page.getByLabel("Şifrə",{exact:true}).fill(pass);
+  await page.getByRole("button",{name:"Daxil ol"}).click();
+  await expect(page).toHaveURL(/\/admin$/);
+  const id=sql("select id from public.products where slug='"+item+"'");
+  const origin="http://127.0.0.1:3028";
+  const bytes=await (await import("sharp")).default({create:{width:8,height:8,channels:3,background:"#a57"}}).png().toBuffer();
+  expect((await page.request.post("/api/admin/image",{headers:{origin},multipart:{id,index:"1",alt:"Second test photo",file:{name:"two.png",mimeType:"image/png",buffer:bytes}}})).status()).toBe(201);
+  const old=sql("select path from public.product_images where product_id='"+id+"' and sort_order=1");
+  expect((await page.request.post("/api/admin",{headers:{origin},data:{op:"image-move",product:id,from:1,to:0}})).status()).toBe(204);
+  expect(sql("select path from public.product_images where product_id='"+id+"' and sort_order=0")).toBe(old);
+  expect((await page.request.post("/api/admin",{headers:{origin},data:{op:"image-delete",product:id,index:0}})).status()).toBe(204);
+  expect(sql("select count(*) from public.product_images where product_id='"+id+"'")).toBe("1");
+  expect((await page.request.get(url+"/storage/v1/object/public/product-images/"+old)).ok()).toBe(false);
+});
 test("invite and recovery callback consume single-use tokens", async ({
   page,
 }) => {
@@ -331,9 +349,6 @@ test("invite and recovery callback consume single-use tokens", async ({
       "/auth/callback?type=invite&token_hash=" +
         invite.data.properties!.hashed_token,
     );
-    await expect(page).toHaveURL(/admin\/password/);
-    await page.getByLabel(/Yeni şifrə/).fill(pass);
-    await page.getByRole("button", { name: "Saxla" }).click();
     await expect(page).toHaveURL(/admin\/login/);
     const recovery = await db.auth.admin.generateLink({
       type: "recovery",
@@ -344,6 +359,12 @@ test("invite and recovery callback consume single-use tokens", async ({
         recovery.data.properties!.hashed_token,
     );
     await expect(page).toHaveURL(/admin\/password/);
+    await page.getByLabel("Cari şifrə", {exact:true}).fill(pass);
+    await page.getByLabel("Yeni şifrə · minimum 12 simvol", {exact:true}).fill(pass+"x");
+    await page.getByLabel("Yeni şifrəni təkrar edin", {exact:true}).fill(pass+"x");
+    await page.getByRole("button", {name:"Saxla",exact:true}).click();
+    await expect(page).toHaveURL(/\/admin$/);
+    expect((await sdk(pub).auth.signInWithPassword({email,password:pass+"x"})).error).toBeNull();
   } finally {
     await db.auth.admin.deleteUser(invite.data.user!.id);
   }

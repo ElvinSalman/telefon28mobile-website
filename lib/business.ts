@@ -11,3 +11,6 @@ export const branches = addresses.map((address, i) => ({
   hours: "",
   map_url: "",
 }));
+
+// Resolved from the owner-supplied share link, 9 November 2026. One store pin only.
+export const mapEmbedUrl = "https://www.google.com/maps?q=40.3775119,49.8481256&z=17&output=embed";

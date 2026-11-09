@@ -43,6 +43,7 @@ export const loadShop = cache(async () => {
         category: r.category_id,
         brand: r.brands?.name || "",
         price: Number(r.price),
+        featured: r.featured,
         storage: r.storage,
         color: r.color,
         condition: r.condition,
@@ -61,7 +62,7 @@ export const loadShop = cache(async () => {
             alt: i.alt,
           })),
 
-        verifiedAt: r.updated_at,
+        verifiedAt: r.source_verified_at || r.updated_at,
       })),
       locations: places.data as typeof branches,
       categories: cats.data,

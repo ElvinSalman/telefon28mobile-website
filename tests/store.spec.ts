@@ -31,6 +31,7 @@ for (const [locale, theme] of [
     await page.goto("/" + locale + "/stores");
     await expect(page.locator("html")).toHaveClass(new RegExp(theme));
     await expect(page.locator(".branchGrid article")).toHaveCount(3);
+    await expect(page.locator("iframe.storeMap")).toHaveAttribute("src",/40.3775119,49.8481256.*output=embed/);
     await expect(
       page.locator('a[href="https://maps.app.goo.gl/FHLKC7UydaLqFPM99"]'),
     ).toHaveCount(1);

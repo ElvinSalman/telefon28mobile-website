@@ -34,3 +34,7 @@ Target the existing [production site](https://telefon28mobile-website.vercel.app
 4. Promote the tested revision to the existing production alias through the authorized release path. Recheck public localized routes, a published product, private admin redirection, trade-in, the store map, sitemap and robots over HTTPS. An empty product catalog is expected until an owner publishes an item.
 5. After confirming the live callback handles invalid links safely, the owner can invite the first admin, validate the UUID and grant the membership. Verify login/logout, an owner-approved catalog edit, a synthetic trade-in and a corresponding metric. Open the production URL in Chrome after these checks pass.
 6. Record commit, deployment ID/URL, migration version, plan, validation results and any outstanding owner actions. If a release regresses, restore the previous known-good Vercel deployment. Keep database changes and newly captured leads intact while diagnosing; use a reviewed forward migration for schema corrections.
+
+## 9 November continuation
+
+The earlier preview-only decision was superseded by the owner’s explicit production implementation request. Three migrations are now applied, ten approved products/photos are stored, production environment variables are configured and manual first-admin provisioning is complete. See IMPLEMENTATION_REPORT.md for current acceptance evidence; earlier checklist values are historical. No hosting upgrade or purchase was performed.

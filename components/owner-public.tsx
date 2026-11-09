@@ -1,10 +1,10 @@
 "use client";
 import { useState } from "react";
-import { MapPin, ArrowUpRight, MessageCircle,Navigation } from "lucide-react";
+import { MapPin, ArrowUpRight, MessageCircle } from "lucide-react";
 import {WhatsAppLink} from "./whatsapp-link";
 import Link from "next/link";
 import { useText } from "./hooks";
-import { mapUrl } from "@/lib/business";
+import { mapUrl, mapEmbedUrl } from "@/lib/business";
 import { tradeSchema } from "@/lib/validation";
 import { useInventory } from "./inventory";
 export function Stores() {
@@ -30,7 +30,7 @@ export function Stores() {
         ))}
       </div>
       <div className="box mapCard">
-        <div className="mapEmblem" aria-hidden><Navigation/><span>BAKI</span></div>
+        <iframe className="storeMap" title="Telefon 28 Store · Google Maps" src={mapEmbedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
         <div className="mapContent"><div className="kicker">{t("map")}</div><h2>Telefon 28 Store</h2><p>{t("mapIntro")}</p><div className="contactActions">
         <a className="button primary" target="_blank" rel="noreferrer" href={mapUrl}>{t("map")} <ArrowUpRight size={16}/></a>
         <WhatsAppLink className="button outline" href={"https://wa.me/"+whatsapp}><MessageCircle size={17}/>WhatsApp</WhatsAppLink></div></div>

@@ -9,6 +9,7 @@ for(const p of seed.products){
   const brand=p.brand.toLowerCase();
   sql.push(`insert into public.brands(slug,name) values(${quote(brand)},${quote(p.brand)}) on conflict do nothing;`);
   sql.push(`insert into public.products(slug,name,brand_id,category_id,price,storage,color,condition,description,status,origin) values(${quote(p.slug)},${quote(p.name)},${quote(brand)},${quote(p.category)},${Number(p.price)},${quote(p.storage)},${quote(p.color)},${p.condition?quote(p.condition):'null'},${quote(JSON.stringify(p.description))}::jsonb,'published','owner_import') on conflict(slug) do nothing;`);
+  sql.push(`update public.products set source_url=${quote(p.sourceUrl)},source_verified_at=${quote(p.reviewedOn+'T12:00:00Z')} where slug=${quote(p.slug)} and source_url is null;`);
   sql.push(`insert into public.product_images(product_id,path,alt,sort_order) select id,${quote('launch/'+p.slug+'.webp')},${quote(p.sourceTitle)},0 from public.products where slug=${quote(p.slug)} on conflict(product_id,sort_order) do nothing;`);
 }
 sql.push('commit;');

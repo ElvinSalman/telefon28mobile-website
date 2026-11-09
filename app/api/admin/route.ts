@@ -28,6 +28,8 @@ const action = z.discriminatedUnion("op", [
       .max(200),
   }),
   z.object({ op: z.literal("archive"), slug }),
+  z.object({ op: z.literal("image-delete"), product: z.uuid(), index: z.number().int().min(0).max(7) }),
+  z.object({ op: z.literal("image-move"), product: z.uuid(), from: z.number().int().min(0).max(7), to: z.number().int().min(0).max(7) }),
   z.object({ op: z.literal("brand"), slug, name: word }),
   z.object({
     op: z.literal("category"),
@@ -88,6 +90,16 @@ export async function POST(req: Request) {
           { onConflict: "slug", defaultToNull: false },
         );
         break;
+      case "image-move":
+        result = await db.rpc("shop_move_image", {product:a.product,from_slot:a.from,to_slot:a.to});
+        break;
+      case "image-delete": {
+        const image = await db.from("product_images").select("id,path").eq("product_id",a.product).eq("sort_order",a.index).single();
+        if(image.error) return new Response(null,{status:404});
+        result=await db.from("product_images").delete().eq("id",image.data.id);
+        if(!result.error) await db.storage.from("product-images").remove([image.data.path]);
+        break;
+      }
       case "archive":
         result = await db
           .from("products")

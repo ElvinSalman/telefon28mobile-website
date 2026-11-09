@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { login, recover } from "../actions";
+import { login } from "../actions";
 export default async function Login({
   searchParams,
 }: {
@@ -9,13 +9,12 @@ export default async function Login({
   return (
     <section className="adminLogin box">
       <h1>İdarəetməyə giriş</h1>
-      <p>Telefon28Mobile mağazasının idarəçiləri üçün.</p><small>Dəvət məktubundan şifrənizi təyin edin, sonra hesabınıza daxil olun.</small>
+      <p>Telefon28Mobile mağazasının idarəçiləri üçün.</p><small>Hesab mağaza sahibi tərəfindən yaradılır. Sizə ayrıca verilmiş e-poçt və şifrə ilə daxil olun.</small>
       {q.error && (
         <p role="alert">
           Giriş mümkün olmadı. Məlumatları və idarəçi icazəsini yoxlayın.
         </p>
       )}
-      {q.reset && <p role="status">Uyğun hesab varsa, e-poçtunuzu yoxlayın.</p>}
       <form action={login}>
         <label>
           E-poçt
@@ -33,16 +32,7 @@ export default async function Login({
         <button className="button primary">Daxil ol</button>
       </form>
       <Link className="textlink" href="/az">← Mağazaya qayıt</Link>
-      <details>
-        <summary>Şifrəni bərpa et</summary>
-        <form action={recover}>
-          <label>
-            E-poçt
-            <input required name="email" type="email" />
-          </label>
-          <button className="button outline">Bərpa keçidi göndər</button>
-        </form>
-      </details>
+      <p className="muted">E-poçtla şifrə bərpası hazırda aktiv deyil. Şifrəni unutmusunuzsa, mağaza sahibi hesabınızı Supabase-də təhlükəsiz yeniləməlidir.</p>
     </section>
   );
 }

@@ -32,7 +32,8 @@ export function Home() {
   const { t, link, locale } = useText();
   const { products, categories, offline } = useInventory();
   const [slide, setSlide] = useState(0);
-  const slides = products.slice(0, 3);
+  const featured = products.filter(p=>p.featured);
+  const slides = (featured.length ? featured : products).slice(0, 3);
   const hero = slides[slide];
   return (
     <>

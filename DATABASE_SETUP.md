@@ -42,29 +42,14 @@ The migration seeds three store locations, category translations and the shared 
 
 The `product-images` bucket is public by design. Each uploaded object's URL can be used by anyone who obtains it, even while the product is a draft. Upload only owner-approved product photography. The bucket accepts JPEG, PNG and WebP up to 4 MiB. Customer documents or trade-in attachments require a separate private design; the current schema stores trade-in form fields. [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control)
 
-## Invite the first administrator
+## First administrator without SMTP
 
-1. First deploy and test the callback in the intended environment. Use **Authentication → URL Configuration**. The production Site URL is `https://telefon28mobile-website.vercel.app`. Allow precisely `https://telefon28mobile-website.vercel.app/auth/callback`. Local development may use the existing `http://localhost:3000/**` entry. Keep public registration and anonymous sign-ins disabled.
-2. In **Authentication → Email Templates**, route invitation and recovery links to the server callback. With the production Site URL set as above, use these two template anchors in the corresponding email types. Use a local Auth instance with its own Site URL for local testing.
+Use the private terminal provisioning script or the confirmed-user Dashboard procedure in [ADMIN_GUIDE.md](ADMIN_GUIDE.md). Both create a real Supabase Auth user and explicitly add its UUID to admin_memberships. Public signup remains disabled. Passwords are entered privately; no invitations or reset emails are required. /admin/password requires allowlist membership and the current password. Self-service email recovery is disabled until compatible mail configuration exists.
 
-```html
-<!-- Invite user -->
-<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=invite">Accept invitation</a>
-<!-- Reset password -->
-<a href="{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&amp;type=recovery">Reset password</a>
-```
+Exact callback URL: https://telefon28mobile-website.vercel.app/auth/callback. Add it under Authentication → URL Configuration → Redirect URLs if absent. Keep the existing localhost redirect. This route remains available for future compatible email flows, but does not bypass admin membership. Remote allowlist persistence has not been independently verified through management settings.
 
-3. Verify email delivery for the intended recipient. Supabase's default mail service restricts recipients and has low sending limits. For business use, configure an owner-approved SMTP sender, disable link tracking and rehearse delivery before inviting the owner. [Email template variables](https://supabase.com/docs/guides/auth/auth-email-templates) · [Custom SMTP](https://supabase.com/docs/guides/auth/auth-smtp)
-4. Under **Authentication → Users → Add user → Send invitation**, invite the owner-confirmed email address. The application verifies the token hash server-side, sets the cookie session and opens `/admin/password`. PKCE recovery codes, when used, must be opened in the initiating browser. Grant the invitation only to the intended person. [Invite API](https://supabase.com/docs/reference/javascript/auth-admin-inviteuserbyemail)
-5. Copy the exact invited user's UUID from Auth and compare its email with the intended recipient. In that project's SQL Editor, substitute that UUID and email, leaving both checks in the query. A returned UUID confirms the inserted membership. An empty result requires checking the identity or existing membership.
+## 8 November release status
 
-```sql
-insert into public.admin_memberships (user_id)
-select id from auth.users
-where id = '<invited-user-uuid>'::uuid
-  and lower(email) = lower('<verified-owner-email>')
-on conflict (user_id) do nothing
-returning user_id;
-```
+Both 202611060001_shop.sql and 202611080001_page_visits.sql are applied to the existing hosted project. Ten verified owner-authorized products and ten Storage photographs have been imported. Production Vercel variables are configured. The server uses the existing service-role credential in sensitive environment storage; no server credential is committed.
 
-6. Sign in at `/admin/login` in a fresh browser. Verify the admin can perform the assigned operations, logout revokes access, and a user without membership still receives a denial. Test an expired or reused invitation, a successful recovery and a session refresh. To revoke administrative access, the database owner can remove that specific UUID's membership and revoke its Auth sessions.
+Local test ports are 55321 (API), 55322 (PostgreSQL) and 55324 (mail), because Windows reserved the old 543xx range. Global public signup remains disabled; the local email provider must be enabled to test password login.

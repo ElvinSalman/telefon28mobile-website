@@ -4,6 +4,7 @@ export interface Product {
   brand: string;
   category: string;
   price: number;
+  featured?: boolean;
   storage: string;
   color: string;
   images?: { url: string; alt: string }[];
