@@ -808,12 +808,12 @@ test("trade-in actual counts, status, quote, admin password change and logout", 
     ).status(),
   ).toBe(409);
   await page.goto("/admin/password");
-  await page.getByLabel("Cari şifrə", { exact: true }).fill(password);
+  await page.locator("input[name=current]:visible").fill(password);
   await page
-    .getByLabel("Yeni şifrə · minimum 12 simvol", { exact: true })
+    .locator("input[name=password]:visible")
     .fill(password + "x");
   await page
-    .getByLabel("Yeni şifrəni təkrar edin", { exact: true })
+    .locator("input[name=confirm]:visible")
     .fill(password + "x");
   await page.getByRole("button", { name: "Saxla", exact: true }).click();
   await expect(page).toHaveURL(/\/admin$/);
@@ -832,6 +832,7 @@ test("trade-in actual counts, status, quote, admin password change and logout", 
   await page.getByRole("button", { name: "Çıxış" }).click();
   await expect(page).toHaveURL(/admin\/login/);
 });
+
 
 
 
