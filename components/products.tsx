@@ -1,4 +1,5 @@
 "use client";
+import { ProductGallery } from "./product-gallery";
 import { useInventory } from "./inventory";
 import { useState } from "react";
 import Link from "next/link";
@@ -10,7 +11,6 @@ import {
   Plus,
   Scan,
   Share2,
-  ZoomIn,
   ChevronRight,
 } from "lucide-react";
 import { type Product } from "@/data/products";
@@ -31,7 +31,13 @@ export function Art({
   index?: number;
 }) {
   const { t } = useText();
-  if (!p.images?.length) return <div className={large ? "art big missingPhoto" : "art missingPhoto"}><Scan aria-hidden="true"/><span>{t("missingPhoto")}</span></div>;
+  if (!p.images?.length)
+    return (
+      <div className={large ? "art big missingPhoto" : "art missingPhoto"}>
+        <Scan aria-hidden="true" />
+        <span>{t("missingPhoto")}</span>
+      </div>
+    );
   return (
     <Image
       src={p.images?.[index]?.url || artFor(p)}
@@ -140,10 +146,7 @@ export function Card({ p, i = 0 }: { p: Product; i?: number }) {
 export function Detail({ p }: { p: Product }) {
   const { t, link, locale } = useText();
   const notice = useNotice();
-  const [zoom, setZoom] = useState(false);
-  const [angle, setAngle] = useState(false);
   const { products, categories } = useInventory();
-  const [index, setIndex] = useState(0);
   const related = products
     .filter((x) => x.slug !== p.slug && x.category === p.category)
     .slice(0, 4);
@@ -155,39 +158,7 @@ export function Detail({ p }: { p: Product }) {
         {p.name}
       </div>
       <div className="detail">
-        <div>
-          <button
-            className={"stage " + (angle ? "cropped" : "")}
-            onClick={() => setZoom(true)}
-            aria-label={t("zoom")}
-          >
-            <Art p={p} large index={index} />
-            <span>
-              <ZoomIn size={17} />
-              {t(p.images?.length ? "gallery" : "art")}
-            </span>
-          </button>
-          <div className="chips">
-            {p.images?.map((im, i) => (
-              <button
-                key={im.url}
-                aria-pressed={index === i}
-                onClick={() => setIndex(i)}
-              >
-                {t("gallery")} {i + 1}
-              </button>
-            ))}
-            {[false, true].map((a, i) => (
-              <button
-                key={i}
-                aria-pressed={angle === a}
-                onClick={() => setAngle(a)}
-              >
-                {t(a ? "zoom" : "gallery")}
-              </button>
-            ))}
-          </div>
-        </div>
+        <ProductGallery key={p.slug} product={p} />
         <div>
           <div className="kicker">
             {p.brand} /{" "}
@@ -200,22 +171,25 @@ export function Detail({ p }: { p: Product }) {
           <h2>{money(p.price)}</h2>
           <small>{t("priceNote")}</small>
           <Actions p={p} />
-          <OrderButton lines={[{ slug: p.slug, qty: 1, price: p.price }]} />
-          <button
-            className="textlink"
-            onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(location.href);
-                notice(t("copied"));
-              } catch {
-                setZoom(false);
-                window.prompt(t("share"), location.href);
-              }
-            }}
-          >
-            <Share2 size={16} />
-            {t("share")}
-          </button>
+          <div className="productContactActions">
+            <div>
+              <OrderButton lines={[{ slug: p.slug, qty: 1, price: p.price }]} />
+            </div>
+            <button
+              className="textlink"
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(location.href);
+                  notice(t("copied"));
+                } catch {
+                  window.prompt(t("share"), location.href);
+                }
+              }}
+            >
+              <Share2 size={16} />
+              {t("share")}
+            </button>
+          </div>
           <dl>
             {[
               [t("brand"), p.brand],
@@ -250,13 +224,6 @@ export function Detail({ p }: { p: Product }) {
           <Card key={p.slug} p={p} />
         ))}
       </div>
-      <Modal open={zoom} close={() => setZoom(false)} title={p.name}>
-        <div className={angle ? "cropped" : ""}>
-          <Art p={p} large index={index} />
-        </div>
-        <small>{t("art")}</small>
-      </Modal>
     </div>
   );
 }
-

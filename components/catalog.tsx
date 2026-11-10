@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useSearchParams, usePathname, useRouter } from "next/navigation";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { useInventory } from "./inventory";
 import { useText } from "./hooks";
 import { Card } from "./products";
@@ -44,18 +44,21 @@ export function Catalog() {
       {(["category", "brand", "storage", "color"] as const).map((k) => (
         <label key={k}>
           {t(k === "category" ? "categories" : k)}
-          <select value={get(k)} onChange={(e) => update(k, e.target.value)}>
-            <option value="">{t("all")}</option>
-            {[...new Set(products.map((p) => p[k]).filter(Boolean))]
-              .sort()
-              .map((v) => (
-                <option value={v} key={v}>
-                  {k === "category"
-                    ? categories.find((c) => c.slug === v)?.[locale] || v
-                    : v}
-                </option>
-              ))}
-          </select>
+          <span className="catalogSelect">
+            <select value={get(k)} onChange={(e) => update(k, e.target.value)}>
+              <option value="">{t("all")}</option>
+              {[...new Set(products.map((p) => p[k]).filter(Boolean))]
+                .sort()
+                .map((v) => (
+                  <option value={v} key={v}>
+                    {k === "category"
+                      ? categories.find((c) => c.slug === v)?.[locale] || v
+                      : v}
+                  </option>
+                ))}
+            </select>
+            <ChevronDown aria-hidden="true" />
+          </span>
         </label>
       ))}
       <div className="pair">

@@ -1,6 +1,9 @@
 export const locales = ["az", "ru", "en"] as const;
 export type Locale = (typeof locales)[number];
 export const copy = {
+  carousel: ["Şəkil karuseli", "Карусель изображений", "Image carousel"],
+  openImage: ["Şəkli böyük aç", "Открыть изображение", "Open larger image"],
+  zoomOut: ["Kiçilt", "Уменьшить", "Zoom out"],
 missingPhoto: ["Foto əlavə edilməyib", "Фото ещё не добавлено", "Photo not yet added"],
 "storesIntro":["Bakıda üç ünvanımızdan birinə yaxınlaşın. Məhsul seçimi və suallarınız üçün WhatsApp-da bizə yazın.","Ждём вас по трём адресам в Баку. Напишите нам в WhatsApp, чтобы подобрать устройство и уточнить детали.","Visit one of our three Baku locations. Message us on WhatsApp for help choosing a device."],
 "branchInquiry":["Salam! Bu filial haqqında məlumat almaq istəyirəm:","Здравствуйте! Хочу уточнить информацию об этом магазине:","Hello! I would like information about this branch:"],
@@ -254,4 +257,5 @@ export const messages = (locale: Locale) =>
   Object.fromEntries(
     Object.keys(copy).map((key) => [key, translate(locale, key as Key)]),
   );
+
 
