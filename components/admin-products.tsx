@@ -1,4 +1,5 @@
 "use client";
+import { cleanOption, productOptions } from "@/lib/product-options";
 import {adminDate} from "@/lib/admin-date";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
@@ -80,7 +81,8 @@ export function ProductsPanel({
     [category, setCategory] = useState(""),
     [page, setPage] = useState(1),
     [sort, setSort] = useState("updated"),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [acting, setActing] = useState<string | null>(null);
   const router = useRouter();
   const rows = data.products
     .filter(
@@ -239,23 +241,28 @@ export function ProductsPanel({
               >
                 Redaktə et
               </button>
-              <button
-                className="button outline"
-                disabled={p.status === "archived"}
-                onClick={async () => {
-                  if (!confirm("Məhsul arxivlənsin? Saytda görünməyəcək."))
-                    return;
-                  try {
-                    await adminRequest({ op: "archive", slug: p.slug });
-                    setMessage("Məhsul arxivləndi.");
-                    router.refresh();
-                  } catch (e) {
-                    setMessage(e instanceof Error ? e.message : "Xəta");
-                  }
-                }}
-              >
-                Arxivlə
-              </button>
+              {([p.status === "archived" ? "restore" : "archive", "delete"] as const).map((op) => (
+                <button key={op} className={"button outline" + (op === "delete" ? " destructive" : "")}
+                  disabled={acting !== null}
+                  aria-label={(op === "delete" ? "Sil" : op === "restore" ? "Bərpa et" : "Arxivlə") + ": " + p.name}
+                  onClick={async () => {
+                    const warning = op === "delete"
+                      ? `“${p.name}” həmişəlik silinsin? Məhsul və fotoları silinəcək. Bu əməliyyatı geri qaytarmaq mümkün deyil.`
+                      : op === "archive" ? `“${p.name}” arxivlənsin? Saytda görünməyəcək.` : null;
+                    if (warning && !confirm(warning)) return;
+                    setActing(p.id);
+                    try {
+                      const result = await adminRequest<{cleanupPending?: boolean}>({ op, slug: p.slug, expected_updated_at: p.updated_at });
+                      setMessage((op === "delete" ? "Məhsul silindi." : op === "restore" ? "Məhsul bərpa edildi. Dərc statusunu yoxlayın." : "Məhsul arxivləndi.") + (result.cleanupPending ? " Foto fayllarının təmizlənməsi növbədədir." : ""));
+                      if (selected === p.slug) setSelected(null);
+                      router.refresh();
+                    } catch (e) {
+                      setMessage(e instanceof Error ? e.message : "Xəta");
+                    } finally { setActing(null); }
+                  }}>
+                  {op === "delete" ? "Sil" : op === "restore" ? "Bərpa et" : "Arxivlə"}
+                </button>
+              ))}
             </div>
           </article>
         ))}
@@ -470,8 +477,8 @@ function ProductEditor({
         price: Number(model.price.replace(",", ".")),
         brand_id: brand?.slug || slugify(model.brand) || "brend",
         category_id: model.category_id,
-        storage: model.storage,
-        color: model.color,
+        storage: cleanOption(model.storage),
+        color: cleanOption(model.color),
         condition: model.condition || null,
         description: { az: model.az, ru: model.ru, en: model.en },
         specifications: Object.fromEntries(
@@ -661,8 +668,15 @@ function ProductEditor({
                 </small>
               )}
             </label>
-            {field("storage", "Yaddaş")}
-            {field("color", "Rəng")}
+            {(["storage", "color"] as const).map((key) => (
+              <div key={key}>
+                {field(key, key === "storage" ? "Yaddaş" : "Rəng", { list: "owner-" + key + "-list" })}
+                <datalist id={"owner-" + key + "-list"}>
+                  {productOptions(data.products.map((p) => p[key]), model[key]).map((value) => <option key={value} value={value} />)}
+                </datalist>
+                <small>Siyahıdan seçin və ya yeni dəyər yazın. Saxladıqdan sonra siyahıya əlavə olunur.</small>
+              </div>
+            ))}
             <label>
               Vəziyyət
               <select

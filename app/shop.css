@@ -133,3 +133,5 @@
 @keyframes galleryReveal{from{opacity:.65}to{opacity:1}}
 @media(max-width:640px){.galleryOpen{padding:18px}.galleryImage{height:330px;height:clamp(260px,80vw,400px)}.galleryLightbox{inset:12px;padding:12px;border-radius:16px}.galleryLightboxHeader{gap:10px}.galleryPrevious{left:8px}.galleryNext{right:8px}.galleryThumbnails button{flex-basis:62px;width:62px;height:62px}.productContactActions{gap:12px 20px}.productContactActions .button{white-space:normal}}
 @media(prefers-reduced-motion:reduce){.galleryImage,.galleryLightbox,.galleryLightboxImage{animation:none}.galleryArrow,.galleryThumbnails button{transition:none}}
+
+.ownerActions{align-items:center}.ownerActions .button{white-space:nowrap;padding-inline:14px}.ownerActions .destructive{color:#d04c4c;border-color:#d04c4c80}.ownerActions .destructive:hover{background:#d04c4c15}@media(min-width:851px) and (max-width:1200px){.ownerProduct{grid-template-columns:80px minmax(160px,1fr) auto auto}.ownerActions{grid-column:2/-1}}

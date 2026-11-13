@@ -79,6 +79,8 @@ export function databaseError(error: { code?: string; message?: string }) {
       "İdxal funksiyası hazır deyil. Administratora məlumat verin.",
     ],
   };
+  if (error.message === "PRODUCT_CONFLICT")
+    return adminError(409, "CONFLICT", "Məhsul dəyişdirilib və ya tapılmadı. Siyahını yeniləyib təkrar yoxlayın.");
   if (error.message === "IMAGE_CONFLICT")
     return adminError(
       409,

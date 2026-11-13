@@ -34,6 +34,8 @@ const action = z.discriminatedUnion("op", [
     rows: z.array(simpleRow).min(1).max(200),
   }),
   z.object({ op: z.literal("archive"), slug }),
+  z.object({ op: z.literal("restore"), slug }),
+  z.object({ op: z.literal("delete"), slug, expected_updated_at: z.iso.datetime({ offset: true }) }),
   z.object({ op: z.literal("image-cleanup") }),
   z.object({
     op: z.literal("image-delete"),
@@ -213,13 +215,19 @@ export async function POST(req: Request) {
         });
       }
       case "archive":
-        result = await db
-          .from("products")
-          .update({ status: "archived" })
-          .eq("slug", a.slug)
-          .select("id")
-          .single();
-        break;
+      case "restore":
+      case "delete": {
+        result = await db.rpc("shop_product_action", {
+          product_slug: a.slug, operation: a.op,
+          expected: a.op === "delete" ? a.expected_updated_at : null,
+        });
+        if (result.error) {
+          if (a.op === "delete" && result.error.code === "23503")
+            return adminError(409, "REFERENCE", "Məhsul əlaqəli qeydlərə görə silinə bilməz. Arxivlə seçin.");
+          return databaseError(result.error);
+        }
+        return Response.json({ ok: true, cleanupPending: a.op === "delete" && !(await cleanImages(db)) });
+      }
       case "category": {
         const { op, ...row } = a;
         void op;
