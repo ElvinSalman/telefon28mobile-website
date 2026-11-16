@@ -3,7 +3,7 @@ import { useEffect, useState, createContext, useContext } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ThemeProvider, useTheme } from "next-themes";
-import { MotionConfig, motion, useScroll } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import {
   Menu,
   Search,
@@ -54,7 +54,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   const [panel, setPanel] = useState("");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
-  const { scrollYProgress } = useScroll();
+
   const cart = useShop((s) => s.cart);
   const count = Object.values(cart).reduce((a, b) => a + b, 0);
   useEffect(() => {
@@ -70,7 +70,7 @@ function Frame({ children }: { children: React.ReactNode }) {
   const cats = categories;
   return (
     <Notice.Provider value={(s) => setNotice(s)}>
-      <motion.div className="progress" style={{ scaleX: scrollYProgress }} />
+
       <header>
         <div className="headerInner">
           <Link href={link()} aria-label="Telefon 28 Mobile">

@@ -19,7 +19,7 @@ export const loadShop = cache(async () => {
           .from("products")
           .select("*,brands(name),product_images(path,alt,sort_order)")
           .eq("status", "published")
-          .order("updated_at", { ascending: false })
+          .order("catalog_position")
           .order("id")
           .range(from, to),
       ),

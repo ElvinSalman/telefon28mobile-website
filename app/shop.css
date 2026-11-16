@@ -135,3 +135,7 @@
 @media(prefers-reduced-motion:reduce){.galleryImage,.galleryLightbox,.galleryLightboxImage{animation:none}.galleryArrow,.galleryThumbnails button{transition:none}}
 
 .ownerActions{align-items:center}.ownerActions .button{white-space:nowrap;padding-inline:14px}.ownerActions .destructive{color:#d04c4c;border-color:#d04c4c80}.ownerActions .destructive:hover{background:#d04c4c15}@media(min-width:851px) and (max-width:1200px){.ownerProduct{grid-template-columns:80px minmax(160px,1fr) auto auto}.ownerActions{grid-column:2/-1}}
+
+.orderControls{display:flex;align-items:center;flex-wrap:wrap;gap:8px;width:100%}.orderControls input{width:80px}.orderControls button{min-height:42px;padding:8px;border:1px solid var(--line);border-radius:8px}
+@media(max-width:580px){.hero .heroIn{row-gap:24px}.hero .heroVisual{margin-top:0}}
+@media(max-width:580px){.hero{overflow-x:clip}.heroButtons{flex-wrap:wrap}.heroCopy{min-width:0}.heroCopy h1{overflow-wrap:anywhere}}

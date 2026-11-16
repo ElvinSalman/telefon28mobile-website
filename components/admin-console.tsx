@@ -8,6 +8,7 @@ import { SimpleImportPanel } from "./admin-import";
 import { adminRequest } from "@/lib/admin-client";
 import { slugify } from "@/lib/validation";
 export type Row = {
+  catalog_position: number;
   id: string;
   slug: string;
   name: string;

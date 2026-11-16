@@ -153,7 +153,7 @@ export function Info({ page }: { page: string }) {
           <div className="checkoutLayout">
             <div className="box">
               <div className="kicker">BAKU / AZ</div>
-              <h2>Telefon 28 Mobile</h2>
+              <h2>Telefon28Mobile</h2>
               <p>{t("serviceText")}</p>
               <a
                 className="textlink"

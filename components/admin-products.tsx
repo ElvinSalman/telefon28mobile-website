@@ -80,7 +80,7 @@ export function ProductsPanel({
     [brand, setBrand] = useState(""),
     [category, setCategory] = useState(""),
     [page, setPage] = useState(1),
-    [sort, setSort] = useState("updated"),
+    [sort, setSort] = useState("position"),
     [message, setMessage] = useState(""),
     [acting, setActing] = useState<string | null>(null);
   const router = useRouter();
@@ -99,7 +99,7 @@ export function ProductsPanel({
         ? a.price - b.price
         : sort === "name"
           ? a.name.localeCompare(b.name)
-          : b.updated_at.localeCompare(a.updated_at),
+          : a.catalog_position - b.catalog_position,
     );
   const pages = Math.max(1, Math.ceil(rows.length / 20)),
     current = Math.min(page, pages);
@@ -177,7 +177,7 @@ export function ProductsPanel({
         <label>
           Sıralama
           <select value={sort} onChange={(e) => setSort(e.target.value)}>
-            <option value="updated">Son dəyişiklik</option>
+            <option value="position">Məhsulların sıralanması</option>
             <option value="name">Ad</option>
             <option value="price">Qiymət</option>
           </select>
@@ -232,6 +232,20 @@ export function ProductsPanel({
               {labels[p.status]}
             </span>
             <div className="ownerActions">
+              {sort === "position" && <form className="orderControls" onSubmit={async e => {
+                e.preventDefault(); if(acting) return;
+                const target=Number(new FormData(e.currentTarget).get("position"));
+                const ids=rows.map(r=>r.id); const from=ids.indexOf(p.id);
+                ids.splice(from,1); ids.splice(target-1,0,p.id);
+                setActing(p.id);
+                try {await adminRequest({op:"reorder",ids,expected:rows.map(r=>({id:r.id,position:r.catalog_position}))});setMessage("Sıralama saxlanıldı.");router.refresh();}
+                catch(e){setMessage(e instanceof Error?e.message:"Xəta");}finally{setActing(null);}
+              }}>
+                <label>Sıra<input aria-label={"Mövqeyi dəyiş: "+p.name} name="position" type="number" min={1} max={rows.length} defaultValue={rows.indexOf(p)+1} key={rows.indexOf(p)} required /></label>
+                <button type="button" disabled={acting!==null || rows.indexOf(p)===0} onClick={e=>{const f=e.currentTarget.form!;(f.elements.namedItem("position") as HTMLInputElement).value=String(rows.indexOf(p));f.requestSubmit();}}>Yuxarı</button>
+                <button type="button" disabled={acting!==null || rows.indexOf(p)===rows.length-1} onClick={e=>{const f=e.currentTarget.form!;(f.elements.namedItem("position") as HTMLInputElement).value=String(rows.indexOf(p)+2);f.requestSubmit();}}>Aşağı</button>
+                <button disabled={acting!==null}>Yadda saxla</button>
+              </form>}
               <button
                 className="button outline"
                 onClick={() => {

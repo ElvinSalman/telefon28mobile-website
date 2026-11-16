@@ -5,6 +5,7 @@ import { test, expect, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { simpleColumns } from "../lib/simple-import";
+import { productOptions } from "../lib/product-options";
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "",
   pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "",
   secret = process.env.SUPABASE_SECRET_KEY || "";
@@ -838,3 +839,95 @@ test("trade-in actual counts, status, quote, admin password change and logout", 
 
 
 
+
+test("final admin dropdowns and safe product lifecycle", async ({ page, request }) => {
+  test.skip(!enabled);
+  expect(productOptions(['  128  GB ', '128 gb', '', 'Qara', 'QARA'], '128 GB')).toEqual(['128 GB', 'Qara']);
+  await login(page);
+  const db = await auth();
+  const brands = (await db.from('brands').select('slug,name').limit(1)).data!;
+  // The local fixture may have no brands yet.
+  brandSlug = brands[0]?.slug || prefix;
+  if (!brands.length) { expect((await db.from('brands').insert({slug:brandSlug,name:prefix})).error).toBeNull(); fixtureBrands.add(brandSlug); }
+  const brandName = brands[0]?.name || prefix;
+  const insert = await db.from('products').insert({slug:prefix,name:prefix,brand_id:brandSlug,category_id:'phone',price:12,storage:'128 GB',color:'Qara',status:'draft'}).select('*').single();
+  expect(insert.error).toBeNull(); itemId=insert.data!.id; itemSlug=prefix; fixtureIds.add(itemId);
+  const get = async () => (await db.from('products').select('*,product_images(*)').eq('id',itemId).single()).data!;
+  const post = (data:unknown) => page.request.post('/api/admin',{headers:{origin},data});
+  expect((await request.post('/api/admin',{headers:{origin},data:{op:'delete',slug:prefix,expected_updated_at:insert.data!.updated_at}})).status()).toBe(403);
+  const ordinary=sdk(pub);await ordinary.auth.signInWithPassword({email:'ordinary-'+email,password});
+  expect((await ordinary.rpc('shop_product_action',{product_slug:prefix,operation:'delete'})).error).toBeTruthy();
+  // Restore both known draft and published states; historical unknown archives stay drafts.
+  for (const status of ['draft','published']) {
+    expect((await db.from('products').update({status}).eq('id',itemId)).error).toBeNull();
+    expect((await post({op:'archive',slug:prefix})).status()).toBe(200);
+    expect((await sdk(pub).from('products').select('id').eq('id',itemId)).data).toEqual([]);
+    expect((await post({op:'restore',slug:prefix})).status()).toBe(200);
+    expect((await get()).status).toBe(status);
+  }
+  const legacy=await db.from('products').insert({slug:prefix+'-legacy',name:prefix+' legacy',brand_id:brandSlug,category_id:'phone',price:1,status:'archived'}).select('id').single();
+  expect(legacy.error).toBeNull();fixtureIds.add(legacy.data!.id);
+  expect((await post({op:'restore',slug:prefix+'-legacy'})).status()).toBe(200);
+  expect((await db.from('products').select('status').eq('id',legacy.data!.id).single()).data?.status).toBe('draft');  await page.goto('/admin/products');await page.getByRole('textbox',{name:'Axtar',exact:true}).fill(prefix);
+  await page.locator('.ownerProduct').filter({has:page.getByRole('heading',{name:prefix,exact:true})}).getByRole('button',{name:'Redaktə et',exact:true}).click();
+  const editor=page.locator('.productEditor:visible');
+  await expect(editor.locator('input[name=storage]')).toHaveValue('128 GB');
+  await expect(editor.locator('input[name=color]')).toHaveValue('Qara');
+  await expect(editor.locator('#owner-storage-list option[value="128 GB"]')).toHaveCount(1);
+  await expect(editor.locator('#owner-color-list option[value="Qara"]')).toHaveCount(1);
+  await expect(editor.locator('input[name=brand]')).toHaveValue(brandName);
+  await expect(editor.locator('input[name=category_id]')).not.toHaveValue('');
+  await editor.locator('input[name=storage]').fill('  QA  '+run+' GB ');
+  await editor.locator('input[name=color]').fill(' QA '+run+' Blue ');
+  await editor.locator('input[name=price]').fill('23.45');
+  await editor.locator('select[name=status]').selectOption('published');
+  await editor.getByRole('button',{name:/Saxla/}).click();
+  await expect(editor.getByRole('status')).toContainText('Saxlanıldı');
+  expect(await get()).toMatchObject({id:itemId,price:23.45,storage:'QA '+run+' GB',color:'QA '+run+' Blue'});
+  const uploaded=await page.request.post('/api/admin/image',{headers:{origin},multipart:{id:itemId,index:'0',alt:'Disposable QA',file:{name:'qa.webp',mimeType:'image/webp',buffer:fs.readFileSync('public/catalog/49076729.webp')}}});
+  expect(uploaded.status()).toBe(201);const path=(await uploaded.json()).image.path;
+  await page.goto('/az/products/'+prefix);await expect(page.getByRole('heading',{name:prefix,exact:true})).toBeVisible();
+  await expect(page.locator('body')).toContainText(/23[.,]45/);
+  // Actual six-column XLSX import adds database options without changing selectors.
+  const book=new Workbook();const sheet=book.addWorksheet('Products');sheet.addRow([...simpleColumns]);
+  sheet.addRow(['iPad '+prefix, '34.56', brandName, 'Import '+run+' GB', 'Import '+run+' Blue', 'QA']);
+  await page.goto('/admin/import');
+  await page.getByLabel('İdxal faylı').setInputFiles({name:'qa.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:Buffer.from(await book.xlsx.writeBuffer())});
+  await page.getByRole('checkbox').check();await page.getByRole('button',{name:'İdxalı təsdiqlə'}).click();
+  await expect(page.getByRole('status').filter({hasText:'uğurlu'})).toBeVisible();
+  await page.goto('/admin/products?new=1');
+  await expect(page.locator('.productEditor:visible #owner-storage-list option[value="Import '+run+' GB"]')).toHaveCount(1);
+  await expect(page.locator('.productEditor:visible #owner-color-list option[value="QA '+run+' Blue"]')).toHaveCount(1);
+  for(const width of [390,768,1440]) {await page.setViewportSize({width,height:900});expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);}
+  await page.goto('/admin/products');await page.getByRole('textbox',{name:'Axtar',exact:true}).fill(prefix);
+  const row=page.locator('.ownerProduct').filter({has:page.getByRole('heading',{name:prefix,exact:true})});
+  page.once('dialog',d=>d.accept());await row.getByRole('button',{name:'Arxivlə: '+prefix,exact:true}).click();
+  await expect(row.getByRole('button',{name:'Bərpa et: '+prefix,exact:true})).toBeVisible();
+  expect((await sdk(pub).from('products').select('id').eq('id',itemId)).data).toEqual([]);
+  await row.getByRole('button',{name:'Bərpa et: '+prefix,exact:true}).click();
+  await expect(row.getByRole('button',{name:'Arxivlə: '+prefix,exact:true})).toBeVisible();
+  expect((await get()).product_images[0].path).toBe(path);
+  page.once('dialog',d=>{expect(d.message()).toContain(prefix);return d.dismiss();});
+  await row.getByRole('button',{name:'Sil: '+prefix,exact:true}).click();expect((await get()).id).toBe(itemId);
+  const old=insert.data!.updated_at;
+  expect((await post({op:'delete',slug:prefix,expected_updated_at:old})).status()).toBe(409);
+  command(`insert into public.daily_stats(day,event,subject,count) values(current_date,'product_view','${prefix}',7)`);
+  page.once('dialog',d=>d.accept());await row.getByRole('button',{name:'Sil: '+prefix,exact:true}).click();
+  await expect(row).toHaveCount(0);
+  expect((await db.from('products').select('id').eq('id',itemId)).data).toEqual([]);
+  await absentFromStorage(path);
+  expect((await db.from('daily_stats').select('count').eq('subject',prefix)).data?.[0].count).toBe(7);
+});
+
+test('catalog ordering acceptance',async({page,request})=>{
+ test.skip(!enabled);await login(page);const db=await auth();
+ const brand=await db.rpc('shop_resolve_brand',{brand_name:prefix,preferred_slug:prefix});expect(brand.error).toBeNull();fixtureBrands.add(brand.data);
+ const created=await db.from('products').insert([1,2,3].map(n=>({name:prefix+' '+n,slug:prefix+'-'+n,brand_id:brand.data,category_id:'phone',price:n,status:'published'}))).select('*');expect(created.error).toBeNull();const items=created.data!.sort((a,b)=>a.catalog_position-b.catalog_position);items.forEach(x=>fixtureIds.add(x.id));
+ expect((await request.post('/api/admin',{headers:{origin},data:{op:'reorder',ids:items.map(x=>x.id),expected:[]}})).status()).toBe(403);
+ await page.goto('/admin/products');await page.getByRole('textbox',{name:'Axtar',exact:true}).fill(prefix);
+ const last=page.locator('.ownerProduct').filter({has:page.getByRole('heading',{name:prefix+' 3',exact:true})});await last.getByRole('spinbutton').fill('1');await last.getByRole('button',{name:'Yadda saxla',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Sıralama saxlanıldı'})).toBeVisible();
+ await page.reload();await page.getByRole('textbox',{name:'Axtar',exact:true}).fill(prefix);await expect(page.locator('.ownerProduct h3').first()).toHaveText(prefix+' 3');
+ const ordered=(await db.from('products').select('*').in('id',items.map(x=>x.id)).order('catalog_position')).data!;expect(ordered.map(x=>x.id)).toEqual([items[2].id,items[0].id,items[1].id]);
+ await db.from('products').update({price:99}).eq('id',items[2].id);expect((await db.from('products').select('catalog_position').eq('id',items[2].id).single()).data?.catalog_position).toBe(ordered[0].catalog_position);
+ for(const locale of ['az','ru','en']){await page.goto('/'+locale+'/catalog?q='+prefix);await expect(page.locator('article.card').first()).toContainText(prefix+' 3');await page.goto('/'+locale+'/stores');await expect(page.getByRole('heading',{name:'Telefon28Mobile',exact:true})).toBeVisible();await page.goto('/'+locale+'/services');await expect(page.getByRole('heading',{name:'Telefon28Mobile',exact:true})).toBeVisible();await expect(page.locator('.progress')).toHaveCount(0);}
+});

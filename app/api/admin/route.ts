@@ -23,6 +23,7 @@ const simpleRow = z.object({
   expected_updated_at: z.iso.datetime({ offset: true }).optional(),
 });
 const action = z.discriminatedUnion("op", [
+ z.object({op:z.literal("reorder"),ids:z.array(z.uuid()).min(1),expected:z.array(z.object({id:z.uuid(),position:z.number().int()})).min(1)}),
   z.object({
     op: z.literal("product"),
     id: z.uuid().optional(),
@@ -94,6 +95,7 @@ export async function POST(req: Request) {
     const a = action.parse(await body(req, 1000000));
     let result;
     switch (a.op) {
+ case "reorder": result=await db.rpc("shop_reorder_products",{ordered_ids:a.ids,expected:a.expected});break;
       case "product": {
         if (a.id) {
           const existing = await db

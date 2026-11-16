@@ -130,14 +130,6 @@ small {
 .inner > h2 {
   margin-top: 60px;
 }
-.progress {
-  position: fixed;
-  inset: 0 0 auto;
-  height: 2px;
-  background: #6486ff;
-  transform-origin: left;
-  z-index: 55;
-}
 header {
   height: 74px;
   background: var(--header);
@@ -1167,7 +1159,7 @@ summary {
   }
   .heroVisual {
     height: clamp(196px, 54vw, 260px);
-    margin: 2px 0 -5px;
+    margin: 24px 0 -5px;
   }
   .device {
     width: 100%;

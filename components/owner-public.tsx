@@ -30,8 +30,8 @@ export function Stores() {
         ))}
       </div>
       <div className="box mapCard">
-        <iframe className="storeMap" title="Telefon 28 Store · Google Maps" src={mapEmbedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
-        <div className="mapContent"><div className="kicker">{t("map")}</div><h2>Telefon 28 Store</h2><p>{t("mapIntro")}</p><div className="contactActions">
+        <iframe className="storeMap" title="Telefon28Mobile · Google Maps" src={mapEmbedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+        <div className="mapContent"><div className="kicker">{t("map")}</div><h2>Telefon28Mobile</h2><p>{t("mapIntro")}</p><div className="contactActions">
         <a className="button primary" target="_blank" rel="noreferrer" href={mapUrl}>{t("map")} <ArrowUpRight size={16}/></a>
         <WhatsAppLink className="button outline" href={"https://wa.me/"+whatsapp}><MessageCircle size={17}/>WhatsApp</WhatsAppLink></div></div>
       </div>
