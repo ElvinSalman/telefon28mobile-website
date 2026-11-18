@@ -16,7 +16,7 @@ Hesab Supabase-də təsdiqlənmiş e-poçt və şəxsi şifrə ilə əl ilə yar
 ## Müraciətlər və filiallar
 **Trade-in** bölməsində yeni müraciətləri açın. Cihaz və əlaqə məlumatlarına yalnız səlahiyyətli şəxslər baxmalıdır. Müştəri ilə əlaqə saxladıqda statusu dəyişin, iş bitdikdə bağlayın. Müştəri fotosu qəbul edilmir. Silinmə sorğularını şəxsiyyəti yoxlayaraq mağaza sahibinə yönləndirin.
 
-**Filiallar** bölməsində ünvan və görünmə sırasını yeniləyin. İş saatlarını, ayrıca telefonu və fərdi xəritə keçidini yalnız təsdiqdən sonra yazın. Ümumi Telefon 28 Store xəritəsi filial siyahısından ayrıdır. **Ayarlar** bölməsində WhatsApp nömrəsi beynəlxalq formatda, yalnız rəqəmlərlə saxlanılır.
+**Filiallar** bölməsində ünvan və görünmə sırasını yeniləyin. İş saatlarını, ayrıca telefonu və fərdi xəritə keçidini yalnız təsdiqdən sonra yazın. Ümumi Telefon 28 Mobile xəritəsi filial siyahısından ayrıdır. **Ayarlar** bölməsində WhatsApp nömrəsi beynəlxalq formatda, yalnız rəqəmlərlə saxlanılır.
 
 ## Analitika
 1, 7, 30 və ya 90 günlük dövrü seçin. Sessiya təxmini brauzer vərəqi sessiyasıdır. Məhsula baxış, WhatsApp keçidinə klik və uğurla saxlanmış trade-in müraciəti ayrı sayılır. WhatsApp klikindən mesajın göndərildiyini və ya satışın baş verdiyini müəyyən etmək mümkün deyil. E-poçt göndərilməsi, silinmə müddəti və hüquqi mətnlər mağaza sahibi tərəfindən təsdiqlənməlidir.

@@ -1,0 +1,16 @@
+TELEFON28MOBILE — QUICK START (WINDOWS)
+
+1. Download the ZIP bundle from ChatGPT.
+2. Extract the archive CONTENTS DIRECTLY into your existing Desktop\telefon28mobile folder.
+   It should result in:
+   Desktop\telefon28mobile\TELEFON28_CODEX_SPEC.md
+   Desktop\telefon28mobile\brand-assets\logo yeni.pdf
+   Do not remove or overwrite any existing project files.
+3. Open the installed Codex desktop app and choose the EXISTING Desktop\telefon28mobile project (NOT a new project).
+4. Paste this message in your existing Telefon28Mobile Codex conversation:
+
+Read TELEFON28_CODEX_SPEC.md in the current workspace and implement the entire specification on top of my EXISTING Telefon28Mobile Next.js project. First inspect the project and preserve the current production storefront in a safe Git branch. Use the provided logo under brand-assets. Work step by step, implement and test real Supabase database/auth/storage, admin panel, products, trade-in, analytics, three branches, one Google Maps link, WhatsApp ordering, localization, themes and SEO. Reuse the existing GitHub repo and Vercel project. Do not create a new project, do not scrape Tap.az without authorization, and do not commit secrets. Ask me only when an authorized Supabase migration, login or production update requires my approval. Keep working until implemented and produce the full final report requested in the spec.
+
+5. When Codex asks for Supabase access, sign in through authorized browser/CLI procedures yourself. Never paste database passwords, access tokens, or service-role keys into public chat or source control.
+6. Do NOT click "Add user" in Supabase until Codex has implemented the real login/callback and tells you how to invite the first admin and grant correct rights.
+7. Do NOT deploy an actual commercial business on Vercel Hobby; first check an eligible commercial hosting plan/alternative with the owner.
