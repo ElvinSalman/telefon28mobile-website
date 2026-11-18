@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { motion } from "motion/react";
 import {
   ArrowRight,
@@ -34,10 +34,43 @@ export function Home() {
   const [slide, setSlide] = useState(0);
   const featured = products.filter(p=>p.featured);
   const slides = (featured.some(p=>p.images?.length) ? featured : products).filter(p=>p.images?.length).slice(0, 3);
-  const hero = slides[slide];
+  const activeSlide = slides.length ? slide % slides.length : 0;
+  const hero = slides[activeSlide];
+  const slideKey = slides.map(p => p.slug).join("|");
+  const sliderRef = useRef<HTMLElement>(null);
+  const restartRef = useRef<() => void>(() => {});
+  const count = slides.length;
+  useEffect(() => {
+    const element = sliderRef.current;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let hovered = !!element?.matches(":hover") && window.matchMedia("(hover: hover)").matches;
+    const clear = () => { clearTimeout(timer); timer = undefined; };
+    const restart = () => {
+      clear();
+      if (count < 2 || hovered || document.hidden || reduced.matches) return;
+      timer = setTimeout(() => { if (document.hidden || reduced.matches || hovered) { clear(); return; } setSlide(current => (current % count + 1) % count); restart(); }, 5000);
+    };
+    const enter = (event: globalThis.PointerEvent) => { if(event.pointerType === "mouse") { hovered = true; clear(); } };
+    const leave = () => { hovered = false; restart(); };
+    restartRef.current = restart;
+    element?.addEventListener("pointerenter", enter);
+    element?.addEventListener("pointerleave", leave);
+    document.addEventListener("visibilitychange", restart);
+    reduced.addEventListener("change", restart);
+    restart();
+    return () => {
+      clear(); restartRef.current = () => {};
+      element?.removeEventListener("pointerenter", enter);
+      element?.removeEventListener("pointerleave", leave);
+      document.removeEventListener("visibilitychange", restart);
+      reduced.removeEventListener("change", restart);
+    };
+  }, [count, slideKey]);
+  const selectSlide = (index: number) => { setSlide(index); restartRef.current(); };
   return (
     <>
-      <section className="hero">
+      <section className="hero" ref={sliderRef}>
         <div className="heroGrid" />
         <div className="wrap heroIn">
           <div className="heroCopy">
@@ -57,13 +90,13 @@ export function Home() {
                 </motion.span>
               ))}
             </h1>
-            <p>
+            <motion.p key={hero?.slug || "empty"} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
               {hero
                 ? [hero.name, hero.storage, hero.color]
                     .filter(Boolean)
                     .join(" · ")
                 : t("serviceText")}
-            </p>
+            </motion.p>
             <div className="heroButtons">
               <Link
                 className="button primary"
@@ -89,7 +122,7 @@ export function Home() {
             <div className="orbit" />
             <motion.div
               className="device"
-              key={slide}
+              key={hero?.slug || "empty"}
               initial={{ opacity: 0, x: 10 }}
               animate={{ opacity: 1, x: 0 }}
             >
@@ -117,14 +150,14 @@ export function Home() {
           {slides.length > 1 && (
             <div className="heroFoot">
               <div className="sequence">
-                <b>0{slide + 1}</b>
+                <b>0{activeSlide + 1}</b>
                 <div>
                   {slides.map((_, i) => (
                     <button
                       key={i}
                       aria-label={t("collection") + " " + (i + 1)}
-                      aria-current={slide === i}
-                      onClick={() => setSlide(i)}
+                      aria-current={activeSlide === i}
+                      onClick={() => selectSlide(i)}
                     />
                   ))}
                 </div>
@@ -137,7 +170,7 @@ export function Home() {
                     key={d}
                     aria-label={t(d < 0 ? "previous" : "next")}
                     onClick={() =>
-                      setSlide((slide + d + slides.length) % slides.length)
+                      selectSlide((activeSlide + d + slides.length) % slides.length)
                     }
                   >
                     {d < 0 ? <ChevronLeft /> : <ChevronRight />}
